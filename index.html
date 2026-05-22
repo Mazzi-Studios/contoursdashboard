@@ -1,0 +1,1695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contours LLC — Marketing Attribution Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#EEF2F7;color:#1a1a2e;min-height:100vh}
+
+/* ── Header ── */
+header{background:linear-gradient(135deg,#1B3A5C 0%,#2466A0 100%);color:#fff;padding:14px 24px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 12px rgba(0,0,0,.25);position:sticky;top:0;z-index:100}
+.hbrand h1{font-size:20px;font-weight:700;letter-spacing:-.3px}
+.hbrand p{font-size:12px;opacity:.7;margin-top:1px}
+.hcontrols{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.date-row{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.12);padding:6px 12px;border-radius:8px;font-size:12px}
+.date-row label{opacity:.75}
+.date-row input{background:transparent;border:none;color:#fff;font-size:12px;cursor:pointer;width:110px}
+.date-row input::-webkit-calendar-picker-indicator{filter:invert(1);opacity:.7;cursor:pointer}
+.btn{padding:8px 15px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-weight:600;transition:.2s;white-space:nowrap}
+.btn-upload{background:#E63946;color:#fff}
+.btn-upload:hover{background:#c1121f}
+.btn-reset{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.25)}
+.btn-reset:hover{background:rgba(255,255,255,.25)}
+.quick-btns{display:flex;gap:4px}
+.btn-quick{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.2);padding:6px 10px;font-size:11px}
+.btn-quick:hover{background:rgba(255,255,255,.25)}
+.btn-quick.active{background:rgba(255,255,255,.3);border-color:rgba(255,255,255,.5)}
+
+/* ── Upload Panel ── */
+.upload-panel{background:#fff;border-bottom:1px solid #DDE3EC;padding:20px 24px;display:none}
+.upload-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;max-width:1200px}
+.dz{border:2px dashed #C8D3E0;border-radius:10px;padding:22px 18px;text-align:center;cursor:pointer;transition:.2s;position:relative;overflow:hidden}
+.dz:hover,.dz.over{border-color:#2466A0;background:#EBF4FF}
+.dz.ok{border-color:#27AE60;background:#F0FFF4;border-style:solid}
+.dz input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.dz .dicon{font-size:26px;margin-bottom:6px}
+.dz h3{font-size:14px;font-weight:600;margin-bottom:3px}
+.dz p{font-size:12px;color:#6B7280}
+.dz .hint{font-size:11px;color:#9CA3AF;margin-top:5px;font-style:italic}
+.dz-status{margin-top:8px;font-size:12px;font-weight:600}
+.st-ok{color:#27AE60}.st-err{color:#E63946}
+
+/* ── Banner ── */
+.banner{background:#F0FFF4;border-bottom:1px solid #A8D5B5;padding:8px 24px;font-size:13px;display:none;align-items:center;gap:16px}
+.banner-ok{color:#1A7C45;font-weight:500}
+.banner-warn{color:#92400E}
+
+/* ── No Data ── */
+.no-data{text-align:center;padding:100px 24px}
+.no-data .nd-icon{font-size:60px;margin-bottom:16px}
+.no-data h2{font-size:20px;font-weight:600;color:#374151;margin-bottom:8px}
+.no-data p{color:#6B7280;font-size:14px;margin-bottom:20px}
+
+/* ── Tabs ── */
+.tabs{background:#fff;border-bottom:1px solid #DDE3EC;padding:0 24px;display:flex;gap:2px;position:sticky;top:53px;z-index:90}
+.tab{padding:13px 17px;border:none;background:transparent;cursor:pointer;font-size:13px;font-weight:500;color:#6B7280;border-bottom:2px solid transparent;transition:.2s;margin-bottom:-1px}
+.tab:hover{color:#1B3A5C}
+.tab.active{color:#1B3A5C;border-bottom-color:#2466A0}
+
+/* ── Content ── */
+.tab-content{display:none;padding:22px 24px}
+.tab-content.active{display:block}
+
+/* ── KPI Grid ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px}
+.kcard{background:#fff;border-radius:10px;padding:18px 20px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.kcard .klabel{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#6B7280;margin-bottom:8px}
+.kcard .kval{font-size:26px;font-weight:700;color:#1B3A5C;line-height:1}
+.kcard .kval.warn{color:#D97706}
+.kcard .kval.ok{color:#059669}
+.kcard .ksub{font-size:11px;color:#9CA3AF;margin-top:5px}
+
+/* ── Charts ── */
+.charts-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}
+.charts-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:20px}
+.chart-card{background:#fff;border-radius:10px;padding:18px 20px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.chart-card h3{font-size:13px;font-weight:600;color:#374151;margin-bottom:14px}
+.chart-card canvas{max-height:260px}
+
+/* ── Cards / Tables ── */
+.card{background:#fff;border-radius:10px;padding:18px 20px;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:16px}
+.card h3{font-size:13px;font-weight:600;color:#374151;margin-bottom:14px}
+.card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.card-head h3{margin:0}
+.tscroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+thead th{text-align:left;padding:9px 11px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6B7280;border-bottom:2px solid #E5E7EB;white-space:nowrap}
+tbody tr{border-bottom:1px solid #F3F4F6;transition:.1s}
+tbody tr:hover{background:#F9FAFB}
+tbody td{padding:9px 11px;color:#374151;vertical-align:middle}
+.m-pos{font-weight:600;color:#059669}
+.m-neg{font-weight:600;color:#D97706}
+.m-bold{font-weight:600}
+.dim{color:#9CA3AF;font-size:11px}
+
+/* ── Badges ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:99px;font-size:11px;font-weight:600;white-space:nowrap}
+.badge-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+
+/* ── Table controls ── */
+.tcontrols{display:flex;gap:10px;margin-bottom:14px;align-items:center;flex-wrap:wrap}
+.tcontrols input,.tcontrols select{padding:7px 11px;border:1px solid #DDE3EC;border-radius:6px;font-size:12.5px;background:#fff;color:#374151}
+.tcontrols input{min-width:200px}
+.btn-sm{padding:7px 13px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-weight:600;background:#1B3A5C;color:#fff}
+.btn-sm:hover{background:#2466A0}
+.tcount{font-size:12px;color:#9CA3AF;margin-left:auto}
+
+/* ── Progress bar ── */
+.pbar{height:6px;background:#E5E7EB;border-radius:3px;overflow:hidden;min-width:50px}
+.pbar-fill{height:100%;border-radius:3px}
+
+/* ── Digital / Google Integration ── */
+.tip{background:#FFF7ED;padding:11px 14px;border-radius:7px;border-left:3px solid #F4A261;font-size:12.5px;color:#374151;margin-top:10px}
+.gd-setup-card{background:#fff;border:2px dashed #4285F4;border-radius:12px;padding:32px 36px;max-width:560px;margin:0 auto;text-align:center}
+.gd-setup-card h2{font-size:20px;font-weight:700;margin-bottom:8px;color:#1B3A5C}
+.gd-setup-sub{font-size:13px;color:#6B7280;margin-bottom:22px}
+.gd-setup-steps{text-align:left;margin-bottom:22px;background:#F8FAFF;border-radius:8px;padding:16px 18px}
+.gd-step{display:flex;gap:12px;align-items:flex-start;margin-bottom:12px;font-size:12.5px;color:#374151;line-height:1.45}
+.gd-step:last-child{margin-bottom:0}
+.gd-step-num{background:#4285F4;color:#fff;border-radius:50%;width:22px;height:22px;min-width:22px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;margin-top:1px}
+.gd-field-row{text-align:left;margin-bottom:16px}
+.gd-label{display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px}
+.gd-input{width:100%;padding:8px 12px;border:1px solid #D1D5DB;border-radius:6px;font-size:13px;font-family:inherit}
+.gd-input.sm{width:180px;margin-right:6px}
+.gd-input:focus{outline:none;border-color:#4285F4;box-shadow:0 0 0 3px rgba(66,133,244,.15)}
+.gd-connect-btn{display:inline-flex;align-items:center;gap:8px;background:#4285F4;color:#fff;border:none;border-radius:6px;padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;transition:.2s}
+.gd-connect-btn:hover{background:#1a6ae4}
+.gd-error{background:#FEF2F2;color:#DC2626;border-radius:7px;padding:10px 14px;font-size:12.5px;margin-top:12px}
+.gd-spinner{color:#9CA3AF;font-size:13px;padding:20px 0;text-align:center}
+.gd-toolbar{display:flex;justify-content:space-between;align-items:center;background:#F0FFF4;border:1px solid #A8D5B5;border-radius:8px;padding:10px 16px;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.gd-toolbar-left{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.gd-badge{font-size:12px;font-weight:600;padding:3px 10px;border-radius:99px;background:#DCFCE7;color:#15803D}
+.gd-date-row{display:flex;align-items:center;gap:6px}
+.gd-date-row label{font-size:12px;color:#374151;font-weight:500}
+.gd-date-input{padding:5px 8px;border:1px solid #D1D5DB;border-radius:5px;font-size:12px;background:#fff;color:#374151;cursor:pointer}
+.gd-load-btn{background:#1B3A5C;color:#fff;border:none;border-radius:5px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:.2s}
+.gd-load-btn:hover{background:#2466A0}
+.gd-toolbar-btns{display:flex;gap:8px}
+.gd-section-card{background:#fff;border-radius:10px;padding:20px 22px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.gd-section-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;gap:10px}
+.gd-section-title{font-size:15px;font-weight:600;color:#1B3A5C;margin-bottom:3px}
+.gd-section-sub{font-size:12px;color:#9CA3AF}
+.gd-site-row,.gd-prop-row{display:flex;align-items:center;gap:8px}
+.gd-select{padding:6px 10px;border:1px solid #D1D5DB;border-radius:6px;font-size:13px;max-width:320px}
+.gd-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:4px}
+.gd-kpi{background:#F8FAFF;border-radius:8px;padding:14px 16px;text-align:center}
+.gd-klabel{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:#6B7280;margin-bottom:6px}
+.gd-kval{font-size:22px;font-weight:700;color:#1B3A5C;line-height:1.1}
+.gd-ksub{font-size:11px;color:#9CA3AF;margin-top:3px}
+.gd-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.gd-table th{padding:8px 10px;border-bottom:2px solid #E5E7EB;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:#6B7280}
+.gd-table td{padding:9px 10px;border-bottom:1px solid #F3F4F6;color:#374151}
+.gd-table tr:hover td{background:#F9FAFB}
+@media(max-width:900px){.gd-kpis{grid-template-columns:repeat(2,1fr)}}
+
+/* ── Unmatched ── */
+.unmatched-pill{display:inline-block;padding:4px 10px;background:#FEF3C7;color:#92400E;border-radius:99px;font-size:12px;font-weight:500}
+
+/* ── Footer ── */
+footer{text-align:center;padding:24px;color:#9CA3AF;font-size:11.5px}
+
+/* ── Responsive ── */
+@media(max-width:1200px){.kpi-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:900px){.charts-2{grid-template-columns:1fr}.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="hbrand">
+    <h1>Contours LLC</h1>
+    <p>Marketing Attribution Dashboard</p>
+  </div>
+  <div class="hcontrols">
+    <div class="date-row">
+      <label>From</label>
+      <input type="date" id="dateFrom" onchange="applyFilters()">
+      <label>To</label>
+      <input type="date" id="dateTo" onchange="applyFilters()">
+    </div>
+    <div class="quick-btns">
+      <button class="btn btn-quick" onclick="setRange(30)">30D</button>
+      <button class="btn btn-quick" onclick="setRange(90)">90D</button>
+      <button class="btn btn-quick" onclick="setRange(365)">12M</button>
+      <button class="btn btn-quick" onclick="resetDates()">All</button>
+    </div>
+    <button class="btn btn-upload" onclick="toggleUpload()">⬆ Upload CSVs</button>
+  </div>
+</header>
+
+<!-- UPLOAD PANEL -->
+<div id="uploadPanel" class="upload-panel">
+  <div class="upload-grid">
+    <div class="dz" id="dzCustomer"
+         ondrop="handleDrop(event,'customer')"
+         ondragover="event.preventDefault();this.classList.add('over')"
+         ondragleave="this.classList.remove('over')">
+      <input type="file" accept=".csv" onchange="handleFile(event,'customer')">
+      <div class="dicon">📋</div>
+      <h3>Customer Zone CSV</h3>
+      <p>Drag & drop or click to select</p>
+      <p class="hint">Wylie → Customer Zone export</p>
+      <div id="stCustomer" class="dz-status"></div>
+    </div>
+    <div class="dz" id="dzPackages"
+         ondrop="handleDrop(event,'packages')"
+         ondragover="event.preventDefault();this.classList.add('over')"
+         ondragleave="this.classList.remove('over')">
+      <input type="file" accept=".csv" onchange="handleFile(event,'packages')">
+      <div class="dicon">📦</div>
+      <h3>Packages CSV</h3>
+      <p>Drag & drop or click to select</p>
+      <p class="hint">Wylie → Packages export <em>(upload multiple pages — they'll merge)</em></p>
+      <div id="stPackages" class="dz-status"></div>
+    </div>
+    <div class="dz" id="dzSalesline"
+         ondrop="handleDrop(event,'salesline')"
+         ondragover="event.preventDefault();this.classList.add('over')"
+         ondragleave="this.classList.remove('over')">
+      <input type="file" accept=".csv" onchange="handleFile(event,'salesline')">
+      <div class="dicon">💰</div>
+      <h3>Sales by Line CSV</h3>
+      <p>Drag & drop or click to select</p>
+      <p class="hint">Wylie → Sales by Line export</p>
+      <div id="stSalesline" class="dz-status"></div>
+    </div>
+    <div class="dz" id="dzLeads"
+         ondrop="handleDrop(event,'leads')"
+         ondragover="event.preventDefault();this.classList.add('over')"
+         ondragleave="this.classList.remove('over')">
+      <input type="file" accept=".csv" onchange="handleFile(event,'leads')">
+      <div class="dicon">🎯</div>
+      <h3>Leads Management CSV</h3>
+      <p>Drag & drop or click to select</p>
+      <p class="hint">Wylie → Leads Management export <em>(optional)</em></p>
+      <div id="stLeads" class="dz-status"></div>
+    </div>
+  </div>
+  <p style="font-size:12px;color:#9CA3AF;margin-top:12px">Upload Customer Zone + Packages + Sales by Line to load the dashboard. Add Leads to unlock full-funnel attribution. Re-upload anytime to refresh.</p>
+</div>
+
+<!-- DATA BANNER -->
+<div id="dataBanner" class="banner">
+  <span>✅</span>
+  <span id="bannerInfo" class="banner-ok"></span>
+  <span id="bannerAge" style="font-size:11px;color:#6B7280;margin-left:6px"></span>
+  <span id="bannerWarn"></span>
+</div>
+
+<!-- NO DATA STATE -->
+<div id="noDataState" class="no-data">
+  <div class="nd-icon">📊</div>
+  <h2>Upload Your Wylie Reports to Get Started</h2>
+  <p>Export <strong>Customer Zone</strong>, <strong>Packages</strong>, and <strong>Sales by Line</strong> CSVs from Wylie, then drop them above.<br>Add the <strong>Leads Management</strong> CSV to unlock full-funnel attribution.</p>
+  <button class="btn btn-upload" onclick="toggleUpload()">⬆ Upload CSVs</button>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard" style="display:none">
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('overview',this)">Overview</button>
+    <button class="tab" onclick="switchTab('attribution',this)">Attribution</button>
+    <button class="tab" onclick="switchTab('sales',this)">Sales</button>
+    <button class="tab" onclick="switchTab('patients',this)">Patients</button>
+    <button class="tab" id="tabFunnelBtn" onclick="switchTab('funnel',this)">Funnel</button>
+    <button class="tab" onclick="switchTab('digital',this)">Digital</button>
+  </div>
+
+  <!-- ═══ OVERVIEW ═══ -->
+  <div id="tab-overview" class="tab-content active">
+    <div class="kpi-grid">
+      <div class="kcard"><div class="klabel">Total Revenue (Paid)</div><div class="kval ok" id="kRevenue">—</div></div>
+      <div class="kcard"><div class="klabel">Outstanding Balance</div><div class="kval warn" id="kOutstanding">—</div></div>
+      <div class="kcard"><div class="klabel">New Patients</div><div class="kval" id="kPatients">—</div><div class="ksub" id="kPatientsSub"></div></div>
+      <div class="kcard"><div class="klabel">Packages Sold</div><div class="kval" id="kPackages">—</div></div>
+      <div class="kcard"><div class="klabel">Avg Package Value</div><div class="kval" id="kAvgPkg">—</div></div>
+    </div>
+
+    <div class="charts-2">
+      <div class="chart-card">
+        <h3>Revenue by Source</h3>
+        <canvas id="cRevSource"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>Monthly Revenue</h3>
+        <canvas id="cMonthly"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3>Recent Transactions</h3>
+        <span id="recentLabel" style="font-size:11.5px;color:#9CA3AF"></span>
+      </div>
+      <div class="tscroll">
+        <table>
+          <thead><tr>
+            <th>Date</th><th>Customer</th><th>Source</th><th>Type</th>
+            <th>Item / Package</th><th>Employee</th><th>Total</th><th>Paid</th><th>Outstanding</th>
+          </tr></thead>
+          <tbody id="tRecent"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ ATTRIBUTION ═══ -->
+  <div id="tab-attribution" class="tab-content">
+    <div class="card">
+      <h3>Performance by Marketing Source</h3>
+      <div class="tscroll">
+        <table>
+          <thead><tr>
+            <th>Source</th><th>Total Patients</th><th>Buying Patients</th>
+            <th>Packages</th><th>Total Paid</th><th>Outstanding</th>
+            <th>Avg Rev / Patient</th><th>Conv. Rate</th><th>Revenue Share</th>
+          </tr></thead>
+          <tbody id="tAttribution"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="charts-2">
+      <div class="chart-card">
+        <h3>Revenue Share by Source</h3>
+        <canvas id="cSourceDonut" style="max-height:250px"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>Total Patients by Source</h3>
+        <canvas id="cSourcePat"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card" style="margin-bottom:16px">
+      <h3>Radio Channel Breakdown — Revenue</h3>
+      <canvas id="cRadio" style="max-height:200px"></canvas>
+    </div>
+  </div>
+
+  <!-- ═══ SALES ═══ -->
+  <div id="tab-sales" class="tab-content">
+    <div class="charts-2">
+      <div class="chart-card">
+        <h3>Revenue by Employee (Paid)</h3>
+        <canvas id="cEmployee"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>Package vs Invoice Mix</h3>
+        <canvas id="cTypeMix" style="max-height:250px"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Package Performance</h3>
+      <div class="tscroll">
+        <table>
+          <thead><tr>
+            <th>Package Name</th><th>Units Sold</th><th>Total Revenue</th>
+            <th>Total Paid</th><th>Outstanding</th><th>Avg Value</th>
+          </tr></thead>
+          <tbody id="tPackages"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Outstanding Balances</h3>
+      <div class="tscroll">
+        <table>
+          <thead><tr>
+            <th>Customer</th><th>Source</th><th>Employee</th><th>Item</th>
+            <th>Date</th><th>Total</th><th>Paid</th><th>Outstanding</th><th>Notes</th>
+          </tr></thead>
+          <tbody id="tOutstanding"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ PATIENTS ═══ -->
+  <div id="tab-patients" class="tab-content">
+    <div class="tcontrols">
+      <input type="text" id="pSearch" placeholder="🔍  Search name or email…" oninput="renderPatients()">
+      <select id="pSrcFilter" onchange="renderPatients()">
+        <option value="">All Sources</option>
+      </select>
+      <select id="pProgFilter" onchange="renderPatients()">
+        <option value="">All Programs</option>
+      </select>
+      <select id="pSponsorFilter" onchange="renderPatients()">
+        <option value="">All Sponsors</option>
+      </select>
+      <button class="btn-sm" onclick="exportPatients()">⬇ Export CSV</button>
+      <span id="pCount" class="tcount"></span>
+    </div>
+    <div class="card">
+      <div class="tscroll">
+        <table>
+          <thead><tr>
+            <th>Name</th><th>Source</th><th>Sponsor</th><th>Program</th>
+            <th>Start Date</th><th>City, State</th><th>Total Paid</th>
+            <th>Outstanding</th><th>Days Since Appt</th>
+          </tr></thead>
+          <tbody id="tPatients"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ FUNNEL ═══ -->
+  <div id="tab-funnel" class="tab-content">
+    <div id="funnelNoLeads" class="dsection" style="text-align:center;padding:40px">
+      <div style="font-size:48px;margin-bottom:12px">🎯</div>
+      <h3 style="margin-bottom:8px">Upload Leads to Unlock the Full Funnel</h3>
+      <p>Add the <strong>Leads Management CSV</strong> from Wylie to see Leads → Patients → Buyers by source.</p>
+      <button class="btn btn-upload" style="margin-top:14px" onclick="toggleUpload()">⬆ Upload Leads CSV</button>
+    </div>
+    <div id="funnelContent" style="display:none">
+      <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)" id="funnelKpis"></div>
+      <div class="card" style="margin-top:16px">
+        <h3>Full Funnel by Marketing Source</h3>
+        <div class="tscroll">
+          <table>
+            <thead><tr>
+              <th>Source</th>
+              <th>Leads</th><th>→ Patients</th><th>Lead Conv %</th>
+              <th>→ Buyers</th><th>Patient Conv %</th>
+              <th>Revenue</th><th>Rev / Lead</th>
+            </tr></thead>
+            <tbody id="tFunnel"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="charts-2" style="margin-top:16px">
+        <div class="chart-card">
+          <h3>Leads by Source</h3>
+          <canvas id="cLeadsSrc"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Active Patients by Source (in period)</h3>
+          <canvas id="cLeadConv"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Unmatched Leads <span style="font-size:11px;font-weight:400;color:#9CA3AF;margin-left:6px">leads not yet converted to patients</span></h3>
+        <div class="tcontrols">
+          <input type="text" id="ulSearch" placeholder="🔍  Search name or email…" oninput="renderUnmatchedLeads()">
+          <select id="ulSrcFilter" onchange="renderUnmatchedLeads()"><option value="">All Sources</option></select>
+          <span id="ulCount" class="tcount"></span>
+        </div>
+        <div class="tscroll">
+          <table>
+            <thead><tr>
+              <th>Lead Name</th><th>Source</th><th>Lead Owner</th>
+              <th>Referred By</th><th>City</th><th>Status</th><th>Lead Added</th><th>Last Interaction</th>
+            </tr></thead>
+            <tbody id="tUnmatchedLeads"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ DIGITAL ═══ -->
+  <div id="tab-digital" class="tab-content">
+
+    <!-- ── Setup Card (shown before auth) ─────────────── -->
+    <div id="gdSetup" class="gd-setup-card">
+      <div style="font-size:40px;margin-bottom:14px">🔗</div>
+      <h2>Connect Google</h2>
+      <p class="gd-setup-sub">Search Console + GA4 for <strong>contoursllc.com</strong></p>
+      <button class="gd-connect-btn" onclick="connectGD()">
+        <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><path d="M17.64 9.2c0-.74-.07-1.45-.18-2.14H9v4.05h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.89z" fill="#fff"/><path d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z" fill="#fff"/><path d="M3.97 10.72A5.41 5.41 0 0 1 3.69 9c0-.6.1-1.18.28-1.72V4.95H.96A9 9 0 0 0 0 9c0 1.45.35 2.82.96 4.05l3.01-2.33z" fill="#fff"/><path d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.95L3.97 7.28C4.68 5.16 6.66 3.58 9 3.58z" fill="#fff"/></svg>
+        Connect with Google
+      </button>
+      <div id="gdSetupError" class="gd-error" style="display:none"></div>
+    </div>
+
+    <!-- ── Connected State ─────────────────────────────── -->
+    <div id="gdConnected" style="display:none">
+
+      <div class="gd-toolbar">
+        <div class="gd-toolbar-left">
+          <span class="gd-badge">✓ Google Connected</span>
+          <div class="gd-date-row">
+            <label>From</label>
+            <input type="date" id="gdFrom" class="gd-date-input" onchange="if(GD.token&&Date.now()<GD.tokenExpiry)loadGDData()" />
+            <label>To</label>
+            <input type="date" id="gdTo" class="gd-date-input" onchange="if(GD.token&&Date.now()<GD.tokenExpiry)loadGDData()" />
+            <button class="gd-load-btn" onclick="loadGDData()">Load Data</button>
+          </div>
+        </div>
+        <div class="gd-toolbar-btns">
+          <button class="btn btn-reset" onclick="refreshGD()" style="font-size:12px">↻ Refresh Token</button>
+          <button class="btn btn-reset" onclick="disconnectGD()" style="font-size:12px">Disconnect</button>
+        </div>
+      </div>
+
+      <!-- Search Console -->
+      <div class="gd-section-card">
+        <div class="gd-section-hdr">
+          <div>
+            <div class="gd-section-title">🔍 Google Search Console</div>
+            <div class="gd-section-sub">Organic search performance — date range selected above</div>
+          </div>
+        </div>
+        <div id="gdGscSpinner" class="gd-spinner">Loading Search Console data…</div>
+        <div id="gdGscError" class="gd-error" style="display:none"></div>
+        <div id="gdGscContent" style="display:none">
+          <div class="gd-kpis" id="gscKpis"></div>
+          <div class="charts-2" style="margin-top:14px">
+            <div class="chart-card"><h3>Clicks Over Time</h3><canvas id="cGscClicks" height="140"></canvas></div>
+            <div class="chart-card"><h3>Top Pages by Clicks</h3><canvas id="cGscPages" height="140"></canvas></div>
+          </div>
+          <div class="card" style="margin-top:0">
+            <h3>Top Queries</h3>
+            <table class="gd-table">
+              <thead><tr><th>Query</th><th>Clicks</th><th>Impressions</th><th>CTR</th><th>Position</th></tr></thead>
+              <tbody id="tGscQueries"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- GA4 -->
+      <div class="gd-section-card">
+        <div class="gd-section-hdr">
+          <div>
+            <div class="gd-section-title">📈 Google Analytics 4</div>
+            <div class="gd-section-sub">Traffic &amp; sessions — date range selected above</div>
+          </div>
+        </div>
+        <div id="gdGa4Spinner" class="gd-spinner" style="display:none">Loading GA4 data…</div>
+        <div id="gdGa4Error" class="gd-error" style="display:none"></div>
+        <div id="gdGa4Content" style="display:none">
+          <div class="gd-kpis" id="ga4Kpis"></div>
+          <div class="charts-2" style="margin-top:14px">
+            <div class="chart-card"><h3>Sessions by Channel</h3><canvas id="cGa4Channels" height="140"></canvas></div>
+            <div class="chart-card"><h3>Sessions Over Time</h3><canvas id="cGa4Sessions" height="140"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /gdConnected -->
+  </div><!-- /tab-digital -->
+</div>
+
+<footer>Contours LLC Attribution Dashboard &nbsp;·&nbsp; Built by Mazzi Studios &nbsp;·&nbsp; Data source: Wylie EMR CSV exports</footer>
+
+<script>
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+const S = {
+  rawC: [], rawPackages: [], rawSalesLine: [], rawLeads: [],
+  customers: [], sales: [], leads: [],
+  joined: [], unmatched: [],
+  leadMatched: [], leadUnmatched: [],
+  charts: {}
+};
+
+// ─────────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────────
+const SRC_COLOR = {
+  'Radio':             '#FF6B35',
+  'Google Search':     '#4285F4',
+  'Google Ads':        '#34A853',
+  'Facebook':          '#1877F2',
+  'Instagram':         '#C13584',
+  'TV':                '#8E24AA',
+  'Client Referral':   '#27AE60',
+  'Employee Referral': '#F4B942',
+  'Website':           '#9B59B6',
+  'Other':             '#78909C',
+  'Unknown':           '#B0BEC5'
+};
+function sc(src){ return SRC_COLOR[src] || '#90A4AE'; }
+
+// ─────────────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────────────
+function $(id){ return document.getElementById(id); }
+function fmt$(n){ return '$'+Math.round(n||0).toLocaleString('en-US'); }
+function fmtDate(d){ return d ? d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'; }
+function normName(n){ return (n||'').toLowerCase().replace(/\s+/g,' ').trim(); }
+
+function normSrc(raw){
+  if(!raw||!raw.trim()) return 'Unknown';
+  const s = raw.trim();
+  if(/radio|mix 92/i.test(s)) return 'Radio';
+  if(/tv ad|tv\s/i.test(s)) return 'TV';
+  if(/facebook ad/i.test(s)) return 'Facebook';
+  if(/^facebook$/i.test(s)) return 'Facebook';
+  if(/instagram/i.test(s)) return 'Instagram';
+  if(/google ad/i.test(s)) return 'Google Ads';
+  if(s==='Google Search') return 'Google Search';
+  if(s==='Client Referral') return 'Client Referral';
+  if(/employee referral|referral.*friend/i.test(s)) return 'Employee Referral';
+  if(/contours website/i.test(s)) return 'Website';
+  if(s==='Other') return 'Other';
+  if(s==='Unknown') return 'Unknown';
+  return 'Other';
+}
+
+function radioSub(raw){
+  return {
+    'Radio':           'Radio (General)',
+    'Radio-Mandis':    'Dan Mandis',
+    'Radio-Matt Murphy':'Matt Murphy',
+    'Mix 92.9':        'Mix 92.9'
+  }[raw] || raw;
+}
+
+function parseMoney(v){
+  if(!v||v==='—') return 0;
+  return parseFloat(String(v).replace(/[$,]/g,''))||0;
+}
+
+function parseAnyDate(str){
+  if(!str||!str.trim()) return null;
+  const d=new Date(str.trim());
+  return isNaN(d)?null:d;
+}
+
+function parseSalesDate(str){
+  if(!str||!str.trim()) return null;
+  // "January 15th 2024" / "Jan 15th, 2024"
+  const m=str.match(/([A-Za-z]+)\s+(\d+)(?:st|nd|rd|th)?,?\s+(\d{4})/i);
+  if(m){ const d=new Date(`${m[1]} ${m[2]}, ${m[3]}`); if(!isNaN(d)) return d; }
+  // Fallback: MM/DD/YYYY, YYYY-MM-DD, etc.
+  return parseAnyDate(str);
+}
+
+function badge(src){
+  const c = sc(src);
+  return `<span class="badge" style="background:${c}20;color:${c}">
+    <span class="badge-dot" style="background:${c}"></span>${src}</span>`;
+}
+
+function typeBadge(t){
+  return t==='Package'
+    ? `<span class="badge" style="background:#EBF4FF;color:#1B3A5C">${t}</span>`
+    : `<span class="badge" style="background:#F3F4F6;color:#374151">${t}</span>`;
+}
+
+// ─────────────────────────────────────────────
+// UPLOAD
+// ─────────────────────────────────────────────
+function toggleUpload(){
+  const p=$('uploadPanel');
+  p.style.display=(p.style.display==='none'||!p.style.display)?'block':'none';
+}
+
+function handleDrop(e,type){
+  e.preventDefault();
+  $('dz'+cap(type)).classList.remove('over');
+  const f=e.dataTransfer.files[0];
+  if(f) processFile(f,type);
+}
+function handleFile(e,type){
+  if(e.target.files[0]) processFile(e.target.files[0],type);
+}
+function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+
+function processFile(file,type){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const text=e.target.result;
+    // Packages stored as merged JSON; all others stored as raw CSV text
+    if(type!=='packages') try{ localStorage.setItem('csv_'+type, text); }catch(ex){}
+    parseCSVText(text,type);
+  };
+  reader.readAsText(file);
+}
+
+function parseCSVText(text,type,silent){
+  Papa.parse(text,{
+    header:true, skipEmptyLines:true,
+    complete(r){
+      if(!silent) $('dz'+cap(type)).classList.add('ok');
+
+      if(type==='customer'){
+        S.rawC=r.data;
+        if(!silent) $('stCustomer').innerHTML=`<span class="st-ok">✓ ${r.data.length} rows loaded</span>`;
+      } else if(type==='packages'){
+        // Merge: deduplicate by PS.ID so multiple exports can be combined
+        const seen=new Set(S.rawPackages.map(p=>p['PS.ID']));
+        const added=r.data.filter(p=>!seen.has(p['PS.ID']));
+        S.rawPackages=[...S.rawPackages,...added];
+        try{ localStorage.setItem('csv_packages',JSON.stringify(S.rawPackages)); }catch(ex){}
+        if(!silent){
+          const note=added.length<r.data.length?` (${S.rawPackages.length} total, merged)`:'';
+          $('stPackages').innerHTML=`<span class="st-ok">✓ ${S.rawPackages.length} packages${note}</span>`;
+        }
+      } else if(type==='salesline'){
+        S.rawSalesLine=r.data;
+        if(!silent) $('stSalesline').innerHTML=`<span class="st-ok">✓ ${r.data.length} rows loaded</span>`;
+      } else {
+        S.rawLeads=r.data;
+        if(!silent) $('stLeads').innerHTML=`<span class="st-ok">✓ ${r.data.length} rows loaded</span>`;
+      }
+
+      if(S.rawC.length&&S.rawPackages.length&&S.rawSalesLine.length){
+        if(!silent) $('uploadPanel').style.display='none';
+        buildData();
+      }
+    },
+    error(e){ if(!silent) $('st'+cap(type)).innerHTML=`<span class="st-err">✗ ${e.message}</span>`; }
+  });
+}
+
+function restoreFromStorage(){
+  const c    =localStorage.getItem('csv_customer');
+  const pJSON=localStorage.getItem('csv_packages');   // stored as JSON array
+  const sl   =localStorage.getItem('csv_salesline');
+  const l    =localStorage.getItem('csv_leads');
+  if(c&&pJSON&&sl){
+    try{ S.rawPackages=JSON.parse(pJSON); }catch(e){ return false; }
+    if(l) parseCSVText(l,'leads',true);
+    parseCSVText(c,'customer',true);
+    parseCSVText(sl,'salesline',true);
+    // Show when data was last uploaded
+    const prev=localStorage.getItem('dash_loadedAt');
+    if(prev){
+      const d=new Date(prev);
+      setTimeout(()=>{
+        if($('bannerAge')) $('bannerAge').textContent='· data loaded '+d.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+      },600);
+    }
+    return true;
+  }
+  return false;
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  restoreFromStorage();
+  // Try silent Google reconnect on page load (token may have expired but avoids
+  // the user having to click Connect every single visit)
+  setTimeout(()=>{
+    if(localStorage.getItem('gd_was_connected') && typeof google!=='undefined' && google.accounts){
+      if(!GD.tokenClient){
+        GD.tokenClient=google.accounts.oauth2.initTokenClient({
+          client_id:GD.clientId,
+          scope:'https://www.googleapis.com/auth/webmasters.readonly https://www.googleapis.com/auth/analytics.readonly',
+          callback:(resp)=>{
+            if(resp.error) return;
+            GD.token=resp.access_token;
+            GD.tokenExpiry=Date.now()+(parseInt(resp.expires_in||3600)-60)*1000;
+            if($('gdSetup')) $('gdSetup').style.display='none';
+            if($('gdConnected')) $('gdConnected').style.display='block';
+          }
+        });
+      }
+      GD.tokenClient.requestAccessToken({prompt:''});
+    }
+  }, 1500); // wait for GIS script to load
+});
+
+// ─────────────────────────────────────────────
+// BUILD DATA
+// ─────────────────────────────────────────────
+function buildData(){
+  // Parse customers
+  S.customers = S.rawC
+    .filter(r=>r['Store']==='Contours LLC'||(r['Wylie ID']&&r['Wylie ID'].trim()))
+    .map(r=>({
+      wylieId:    (r['Wylie ID']||'').trim(),
+      customerId: (r['Customer ID']||'').trim(),
+      firstName:  (r['First Name']||'').trim(),
+      lastName:   (r['Last Name']||'').trim(),
+      fullName:   `${(r['First Name']||'').trim()} ${(r['Last Name']||'').trim()}`.trim(),
+      sourceRaw:  (r['Campaign Type']||'').trim(),
+      source:     normSrc(r['Campaign Type']),
+      referredBy: (r['Referred By']||'').trim(),
+      sponsor:    (r['Employee Sponsor']||'').trim(),
+      startDate:  parseAnyDate(r['Start Date']),
+      program:    (r['Current Program']||'None').trim(),
+      city:       (r['City']||'').trim(),
+      state:      (r['State']||'').trim(),
+      email:      (r['Email']||'').trim(),
+      daysAppt:   r['Days Since Last Appt']==='—'?null:parseFloat(r['Days Since Last Appt'])||null,
+      totalPaid:  0, totalOut:0, packages:0, invoices:0
+    }));
+
+  // Parse packages (Wylie Packages CSV — YYYY-MM-DD dates)
+  const pkgRecords = S.rawPackages
+    .filter(r=>r['Customer']&&r['Customer'].trim())
+    .map(r=>{
+      const price=parseMoney(r['Price']);
+      const out  =parseMoney(r['Outstanding']);
+      return {
+        type:     'Package',
+        id:       (r['PS.ID']||'').trim(),
+        item:     (r['Package']||'').trim(),
+        date:     parseAnyDate(r['Date']),
+        dateStr:  r['Date']||'',
+        employee: (r['Employee']||'').trim(),
+        custName: (r['Customer']||'').trim(),
+        total:    price,
+        paid:     price-out,
+        out:      out,
+        notes:    (r['Payment Notes']||'').trim()
+      };
+    });
+
+  // Parse sales by line → aggregate by Inv# → invoice records
+  const invMap={};
+  S.rawSalesLine
+    .filter(r=>r['Customer']&&r['Customer'].trim()&&(r['Inv#']||'').trim())
+    .forEach(r=>{
+      const inv=(r['Inv#']||'').trim();
+      if(!invMap[inv]) invMap[inv]={date:r['Date']||'',employee:(r['Employee']||'').trim(),custName:(r['Customer']||'').trim(),total:0};
+      invMap[inv].total+=parseMoney(r['Total']);
+    });
+  const invRecords=Object.values(invMap).map(inv=>({
+    type:     'Invoice',
+    id:       '',
+    item:     '',
+    date:     parseSalesDate(inv.date),
+    dateStr:  inv.date,
+    employee: inv.employee,
+    custName: inv.custName,
+    total:    inv.total,
+    paid:     Math.max(0,inv.total),
+    out:      0,
+    notes:    ''
+  }));
+
+  S.sales=[...pkgRecords,...invRecords];
+
+  // Build customer lookup
+  const cmap={};
+  S.customers.forEach(c=>{ if(c.fullName) cmap[normName(c.fullName)]=c; });
+
+  // Join sales → customers
+  S.joined=[]; S.unmatched=[];
+  S.sales.forEach(s=>{
+    const key=normName(s.custName);
+    let cust=cmap[key];
+    // Fallback: try reversed name
+    if(!cust){
+      const parts=key.split(' ');
+      if(parts.length>=2){
+        cust=cmap[normName(parts[parts.length-1]+' '+parts[0])];
+      }
+    }
+    if(cust) S.joined.push({...s,customer:cust});
+    else     S.unmatched.push(s);
+  });
+
+  // Roll up financials onto customers
+  const fmap={};
+  S.joined.forEach(j=>{
+    const k=j.customer.wylieId||normName(j.customer.fullName);
+    if(!fmap[k]) fmap[k]={paid:0,out:0,pkg:0,inv:0};
+    fmap[k].paid+=j.paid; fmap[k].out+=j.out;
+    if(j.type==='Package') fmap[k].pkg++; else fmap[k].inv++;
+  });
+  S.customers.forEach(c=>{
+    const k=c.wylieId||normName(c.fullName);
+    const f=fmap[k]||{paid:0,out:0,pkg:0,inv:0};
+    c.totalPaid=f.paid; c.totalOut=f.out; c.packages=f.pkg; c.invoices=f.inv;
+  });
+
+  // Restore last-used date range, or default to All
+  $('dateFrom').value=localStorage.getItem('dash_dateFrom')||'';
+  $('dateTo').value  =localStorage.getItem('dash_dateTo')  ||'';
+
+  // Parse leads if available
+  if(S.rawLeads.length) buildLeads();
+
+  // Record load time for freshness indicator
+  const loadedAt=new Date();
+  try{ localStorage.setItem('dash_loadedAt', loadedAt.toISOString()); }catch(e){}
+
+  // Show dashboard
+  $('noDataState').style.display='none';
+  $('dashboard').style.display='block';
+  $('dataBanner').style.display='flex';
+  $('bannerAge').textContent='· data loaded '+loadedAt.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+
+  populateFilters();
+  renderAll();
+}
+
+// ─────────────────────────────────────────────
+// FILTERS
+// ─────────────────────────────────────────────
+function getFrom(){ const v=$('dateFrom').value; return v?new Date(v):null; }
+function getTo(){   const v=$('dateTo').value;   return v?new Date(v+'T23:59:59'):null; }
+
+function filteredJoined(){
+  const f=getFrom(),t=getTo();
+  if(!f&&!t) return S.joined;
+  return S.joined.filter(j=>{
+    if(!j.date) return false;
+    if(f&&j.date<f) return false;
+    if(t&&j.date>t) return false;
+    return true;
+  });
+}
+
+function filteredCustomers(){
+  const f=getFrom(),t=getTo();
+  if(!f&&!t) return S.customers;
+  return S.customers.filter(c=>{
+    if(!c.startDate) return false;
+    if(f&&c.startDate<f) return false;
+    if(t&&c.startDate>t) return false;
+    return true;
+  });
+}
+
+function saveDateRange(){
+  try{
+    localStorage.setItem('dash_dateFrom',$('dateFrom').value);
+    localStorage.setItem('dash_dateTo',$('dateTo').value);
+  }catch(e){}
+}
+function setRange(days){
+  const to=new Date(); to.setHours(23,59,59,0);
+  const from=new Date(); from.setDate(from.getDate()-days); from.setHours(0,0,0,0);
+  $('dateFrom').value=from.toISOString().split('T')[0];
+  $('dateTo').value=to.toISOString().split('T')[0];
+  document.querySelectorAll('.btn-quick').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+  saveDateRange();
+  renderAll();
+}
+function resetDates(){
+  $('dateFrom').value='';
+  $('dateTo').value='';
+  document.querySelectorAll('.btn-quick').forEach(b=>b.classList.remove('active'));
+  saveDateRange();
+  renderAll();
+}
+function applyFilters(){
+  document.querySelectorAll('.btn-quick').forEach(b=>b.classList.remove('active'));
+  saveDateRange();
+  renderAll();
+}
+
+// ─────────────────────────────────────────────
+// RENDER ALL
+// ─────────────────────────────────────────────
+function renderAll(){
+  const joined   = filteredJoined();
+  const customers= filteredCustomers();
+
+  // Banner
+  const leadTxt = S.leads.length ? ` · ${S.leads.length} leads` : '';
+  $('bannerInfo').textContent=`${customers.length} patients · ${joined.length} transactions${leadTxt}`;
+  const warns=[];
+  if(S.unmatched.length) warns.push(`⚠ ${S.unmatched.length} unmatched sales records`);
+  $('bannerWarn').innerHTML=warns.map(w=>`<span class="unmatched-pill">${w}</span>`).join(' ');
+
+  renderOverview(joined,customers);
+  renderAttribution(joined,customers);
+  renderSales(joined);
+  renderPatients();
+  renderFunnel();
+}
+
+function populateFilters(){
+  const srcs=[...new Set(S.customers.map(c=>c.source))].sort();
+  $('pSrcFilter').innerHTML='<option value="">All Sources</option>'+srcs.map(s=>`<option>${s}</option>`).join('');
+  const progs=[...new Set(S.customers.map(c=>c.program))].filter(Boolean).sort();
+  $('pProgFilter').innerHTML='<option value="">All Programs</option>'+progs.map(p=>`<option>${p}</option>`).join('');
+  const sponsors=[...new Set(S.customers.map(c=>c.sponsor))].filter(Boolean).sort();
+  $('pSponsorFilter').innerHTML='<option value="">All Sponsors</option>'+sponsors.map(s=>`<option>${s}</option>`).join('');
+}
+
+// ─────────────────────────────────────────────
+// OVERVIEW
+// ─────────────────────────────────────────────
+function renderOverview(joined,customers){
+  const paid   = joined.reduce((s,j)=>s+j.paid,0);
+  const out    = joined.reduce((s,j)=>s+j.out,0);
+  const pkgs   = joined.filter(j=>j.type==='Package');
+  const avgPkg = pkgs.length ? pkgs.reduce((s,j)=>s+j.total,0)/pkgs.length : 0;
+
+  $('kRevenue').textContent    = fmt$(paid);
+  $('kOutstanding').textContent= fmt$(out);
+  $('kPatients').textContent   = customers.length.toLocaleString();
+  $('kPackages').textContent   = pkgs.length.toLocaleString();
+  $('kAvgPkg').textContent     = fmt$(avgPkg);
+
+  // Revenue by source bar
+  const bySrc=aggBySrc(joined);
+  bySrc.sort((a,b)=>b.paid-a.paid);
+  renderBarH('cRevSource',{
+    labels:bySrc.map(s=>s.source),
+    data:  bySrc.map(s=>s.paid),
+    colors:bySrc.map(s=>sc(s.source))
+  });
+
+  // Monthly trend
+  renderMonthly('cMonthly',joined);
+
+  // Recent 25 transactions
+  const recent=[...joined].sort((a,b)=>(b.date||0)-(a.date||0)).slice(0,25);
+  $('recentLabel').textContent=`${recent.length} most recent`;
+  $('tRecent').innerHTML=recent.map(j=>`
+    <tr>
+      <td style="white-space:nowrap">${fmtDate(j.date)}</td>
+      <td><strong>${j.custName}</strong></td>
+      <td>${badge(j.customer.source)}</td>
+      <td>${typeBadge(j.type)}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${j.item||'—'}</td>
+      <td>${j.employee}</td>
+      <td class="m-bold">${fmt$(j.total)}</td>
+      <td class="m-pos">${fmt$(j.paid)}</td>
+      <td class="${j.out>0?'m-neg':''}">${j.out>0?fmt$(j.out):'—'}</td>
+    </tr>`).join('');
+}
+
+// ─────────────────────────────────────────────
+// ATTRIBUTION
+// ─────────────────────────────────────────────
+function renderAttribution(joined,customers){
+  // Count all patients per source (from customer zone, not just buying ones)
+  const allPatBySrc={};
+  customers.forEach(c=>{ allPatBySrc[c.source]=(allPatBySrc[c.source]||0)+1; });
+
+  const bySrc=aggBySrc(joined);
+  const totalPaid=bySrc.reduce((s,x)=>s+x.paid,0);
+  bySrc.sort((a,b)=>b.paid-a.paid);
+
+  $('tAttribution').innerHTML=bySrc.map(s=>{
+    const share=totalPaid>0?(s.paid/totalPaid*100):0;
+    const allPat=allPatBySrc[s.source]||0;
+    const convRate=allPat>0?(s.patientCount/allPat*100):0;
+    const c=sc(s.source);
+    return `<tr>
+      <td>${badge(s.source)}</td>
+      <td>${allPat}</td>
+      <td>${s.patientCount}</td>
+      <td>${s.packages}</td>
+      <td class="m-pos">${fmt$(s.paid)}</td>
+      <td class="${s.out>0?'m-neg':''}">${s.out>0?fmt$(s.out):'—'}</td>
+      <td>${s.patientCount>0?fmt$(s.paid/s.patientCount):'—'}</td>
+      <td>${allPat>0?convRate.toFixed(0)+'%':'—'}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="pbar" style="flex:1">
+            <div class="pbar-fill" style="width:${share.toFixed(1)}%;background:${c}"></div>
+          </div>
+          <span style="font-size:11.5px;min-width:36px">${share.toFixed(1)}%</span>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // Source donut
+  renderDonut('cSourceDonut',{
+    labels:bySrc.map(s=>s.source),
+    data:  bySrc.map(s=>s.paid),
+    colors:bySrc.map(s=>sc(s.source))
+  });
+
+  // Patients by source (all customers)
+  const custSrcs=Object.keys(allPatBySrc).sort((a,b)=>allPatBySrc[b]-allPatBySrc[a]);
+  renderBarH('cSourcePat',{
+    labels:custSrcs,
+    data:  custSrcs.map(s=>allPatBySrc[s]),
+    colors:custSrcs.map(s=>sc(s))
+  });
+
+  // Radio breakdown
+  const radioJ=joined.filter(j=>j.customer.source==='Radio');
+  const rMap={};
+  radioJ.forEach(j=>{
+    const sub=radioSub(j.customer.sourceRaw);
+    if(!rMap[sub]) rMap[sub]={paid:0,pats:new Set()};
+    rMap[sub].paid+=j.paid;
+    rMap[sub].pats.add(j.customer.wylieId||normName(j.customer.fullName));
+  });
+  const rKeys=Object.keys(rMap).sort((a,b)=>rMap[b].paid-rMap[a].paid);
+  const rColors=['#FF6B35','#FF8C55','#FFAD78','#FFD0B0'];
+  renderBarH('cRadio',{
+    labels:rKeys.length?rKeys:['No Radio Data in Period'],
+    data:  rKeys.length?rKeys.map(k=>rMap[k].paid):[0],
+    colors:rColors.slice(0,Math.max(rKeys.length,1))
+  });
+}
+
+// ─────────────────────────────────────────────
+// SALES
+// ─────────────────────────────────────────────
+function renderSales(joined){
+  // By employee
+  const eMap={};
+  joined.forEach(j=>{
+    if(!eMap[j.employee]) eMap[j.employee]={paid:0,pkg:0,inv:0};
+    eMap[j.employee].paid+=j.paid;
+    if(j.type==='Package') eMap[j.employee].pkg++; else eMap[j.employee].inv++;
+  });
+  const eKeys=Object.keys(eMap).sort((a,b)=>eMap[b].paid-eMap[a].paid);
+  const empColors=['#1B3A5C','#2466A0','#4B8EC8','#7BB3E0','#AAD3F0'];
+  renderBarH('cEmployee',{
+    labels:eKeys,
+    data:  eKeys.map(e=>eMap[e].paid),
+    colors:empColors.slice(0,eKeys.length)
+  });
+
+  // Package vs Invoice mix
+  const pkgPaid=joined.filter(j=>j.type==='Package').reduce((s,j)=>s+j.paid,0);
+  const invPaid=joined.filter(j=>j.type==='Invoice').reduce((s,j)=>s+j.paid,0);
+  renderDonut('cTypeMix',{
+    labels:['Packages','Invoices'],
+    data:  [pkgPaid,invPaid],
+    colors:['#1B3A5C','#4B8EC8']
+  });
+
+  // Packages table
+  const pMap={};
+  joined.filter(j=>j.type==='Package').forEach(j=>{
+    const n=j.item||'Package';
+    if(!pMap[n]) pMap[n]={count:0,total:0,paid:0,out:0};
+    pMap[n].count++; pMap[n].total+=j.total; pMap[n].paid+=j.paid; pMap[n].out+=j.out;
+  });
+  const pKeys=Object.keys(pMap).sort((a,b)=>pMap[b].paid-pMap[a].paid);
+  $('tPackages').innerHTML=pKeys.length?pKeys.map(k=>`
+    <tr>
+      <td><strong>${k}</strong></td>
+      <td>${pMap[k].count}</td>
+      <td class="m-bold">${fmt$(pMap[k].total)}</td>
+      <td class="m-pos">${fmt$(pMap[k].paid)}</td>
+      <td class="${pMap[k].out>0?'m-neg':''}">${pMap[k].out>0?fmt$(pMap[k].out):'—'}</td>
+      <td class="dim">${fmt$(pMap[k].total/pMap[k].count)}</td>
+    </tr>`).join('')
+    :'<tr><td colspan="6" style="text-align:center;padding:24px;color:#9CA3AF">No packages in this period</td></tr>';
+
+  // Outstanding
+  const outs=joined.filter(j=>j.out>0).sort((a,b)=>b.out-a.out);
+  $('tOutstanding').innerHTML=outs.length?outs.map(j=>`
+    <tr>
+      <td><strong>${j.custName}</strong></td>
+      <td>${badge(j.customer.source)}</td>
+      <td>${j.employee}</td>
+      <td>${j.item||j.type}</td>
+      <td style="white-space:nowrap">${fmtDate(j.date)}</td>
+      <td class="m-bold">${fmt$(j.total)}</td>
+      <td class="m-pos">${fmt$(j.paid)}</td>
+      <td class="m-neg">${fmt$(j.out)}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#6B7280;font-size:11.5px">${j.notes||'—'}</td>
+    </tr>`).join('')
+    :'<tr><td colspan="9" style="text-align:center;padding:24px;color:#27AE60">🎉 No outstanding balances</td></tr>';
+}
+
+// ─────────────────────────────────────────────
+// PATIENTS
+// ─────────────────────────────────────────────
+function renderPatients(){
+  const q=($('pSearch').value||'').toLowerCase();
+  const sf=$('pSrcFilter').value;
+  const pf=$('pProgFilter').value;
+  const spf=$('pSponsorFilter').value;
+
+  let list=[...S.customers];
+  if(q)   list=list.filter(c=>c.fullName.toLowerCase().includes(q)||c.email.toLowerCase().includes(q));
+  if(sf)  list=list.filter(c=>c.source===sf);
+  if(pf)  list=list.filter(c=>c.program===pf);
+  if(spf) list=list.filter(c=>c.sponsor===spf);
+  list.sort((a,b)=>b.totalPaid-a.totalPaid);
+
+  $('pCount').textContent=`${list.length} patients`;
+  $('tPatients').innerHTML=list.length?list.map(c=>`
+    <tr>
+      <td>
+        <strong>${c.fullName}</strong>
+        ${c.email?`<br><span class="dim">${c.email}</span>`:''}
+      </td>
+      <td>${badge(c.source)}</td>
+      <td>${c.sponsor||'—'}</td>
+      <td><span class="badge" style="background:#F3F4F6;color:#374151">${c.program}</span></td>
+      <td style="white-space:nowrap">${c.startDate?fmtDate(c.startDate):'—'}</td>
+      <td>${[c.city,c.state].filter(Boolean).join(', ')||'—'}</td>
+      <td class="${c.totalPaid>0?'m-pos':''}">${c.totalPaid>0?fmt$(c.totalPaid):'—'}</td>
+      <td class="${c.totalOut>0?'m-neg':''}">${c.totalOut>0?fmt$(c.totalOut):'—'}</td>
+      <td>${c.daysAppt!==null?c.daysAppt+'d':'—'}</td>
+    </tr>`).join('')
+    :'<tr><td colspan="9" style="text-align:center;padding:28px;color:#9CA3AF">No patients match your filters</td></tr>';
+}
+
+function exportPatients(){
+  const q=($('pSearch').value||'').toLowerCase();
+  const sf=$('pSrcFilter').value, pf=$('pProgFilter').value, spf=$('pSponsorFilter').value;
+  let list=[...S.customers];
+  if(q)   list=list.filter(c=>c.fullName.toLowerCase().includes(q)||c.email.toLowerCase().includes(q));
+  if(sf)  list=list.filter(c=>c.source===sf);
+  if(pf)  list=list.filter(c=>c.program===pf);
+  if(spf) list=list.filter(c=>c.sponsor===spf);
+
+  const hdr=['Full Name','Wylie ID','Source','Source (Raw)','Sponsor','Program',
+             'Start Date','City','State','Email','Total Paid','Outstanding','Days Since Appt'];
+  const rows=list.map(c=>[
+    c.fullName,c.wylieId,c.source,c.sourceRaw,c.sponsor,c.program,
+    c.startDate?c.startDate.toISOString().split('T')[0]:'',
+    c.city,c.state,c.email,c.totalPaid,c.totalOut,c.daysAppt??''
+  ]);
+  const csv=[hdr,...rows].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download=`contours-patients-${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+}
+
+// ─────────────────────────────────────────────
+// BUILD LEADS
+// ─────────────────────────────────────────────
+function parseLeadDate(str){
+  if(!str||!str.trim()) return null;
+  const m=str.trim().match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if(m) return new Date(`${m[3]}-${m[1]}-${m[2]}`);
+  return null;
+}
+
+function buildLeads(){
+  S.leads = S.rawLeads
+    .filter(r=>r['Lead Name']&&r['Lead Name'].trim())
+    .map(r=>({
+      leadId:       (r['ID']||'').trim(),
+      name:         (r['Lead Name']||'').trim(),
+      owner:        (r['Lead Owner']||'').trim(),
+      campaign:     (r['Campaign']||'').trim(),
+      source:       normSrc(r['Campaign']),
+      referredBy:   (r['Referred by']||'').trim(),
+      city:         (r['City']||'').trim(),
+      email:        (r['Email']||'').trim(),
+      status:       (r['Status']||'').trim(),
+      leadAdded:    parseLeadDate(r['Lead Added']),
+      lastInteraction: parseLeadDate(r['Last Interaction']),
+      customer:     null
+    }));
+
+  // Build customer lookup by normalized name
+  const cmap={};
+  S.customers.forEach(c=>{ if(c.fullName) cmap[normName(c.fullName)]=c; });
+
+  S.leadMatched=[]; S.leadUnmatched=[];
+  S.leads.forEach(l=>{
+    const key=normName(l.name);
+    let cust=cmap[key];
+    if(!cust){
+      const parts=key.split(' ');
+      if(parts.length>=2) cust=cmap[normName(parts[parts.length-1]+' '+parts[0])];
+    }
+    if(cust){ l.customer=cust; S.leadMatched.push(l); }
+    else      S.leadUnmatched.push(l);
+  });
+}
+
+// ─────────────────────────────────────────────
+// FUNNEL TAB
+// ─────────────────────────────────────────────
+function filteredLeads(){
+  const f=getFrom(),t=getTo();
+  if(!S.leads.length) return [];
+  return S.leads.filter(l=>{
+    if(!l.leadAdded) return true;
+    if(f&&l.leadAdded<f) return false;
+    if(t&&l.leadAdded>t) return false;
+    return true;
+  });
+}
+
+function renderFunnel(){
+  const hasLeads = S.leads.length>0;
+  $('funnelNoLeads').style.display = hasLeads?'none':'block';
+  $('funnelContent').style.display = hasLeads?'block':'none';
+  if(!hasLeads) return;
+
+  // NOTE: In Wylie, leads are removed when they convert to patients.
+  // So Leads CSV = current unconverted pipeline; Customer Zone = converted patients.
+  // We show them side-by-side to reveal source quality.
+
+  const leads    = S.leads;  // all unconverted pipeline, not date-filtered
+  const joined   = filteredJoined();
+  const customers= filteredCustomers();
+
+  // Leads by source (unconverted pipeline)
+  const leadsBySrc={};
+  leads.forEach(l=>{ leadsBySrc[l.source]=(leadsBySrc[l.source]||0)+1; });
+
+  // Patients by source (converted, from Customer Zone)
+  const patBySrc={};
+  customers.forEach(c=>{ patBySrc[c.source]=(patBySrc[c.source]||0)+1; });
+
+  // Buyers & revenue by source (from Sales)
+  const buyBySrc={}, revBySrc={};
+  joined.forEach(j=>{
+    const s=j.customer.source;
+    buyBySrc[s]=(buyBySrc[s]||new Set());
+    buyBySrc[s].add(j.customer.wylieId||normName(j.customer.fullName));
+    revBySrc[s]=(revBySrc[s]||0)+j.paid;
+  });
+
+  // Combine all sources
+  const allSrcs=[...new Set([...Object.keys(leadsBySrc),...Object.keys(patBySrc)])];
+  const rows=allSrcs.map(s=>({
+    src:s,
+    leads:    leadsBySrc[s]||0,
+    patients: patBySrc[s]||0,
+    buyers:   buyBySrc[s]?buyBySrc[s].size:0,
+    paid:     revBySrc[s]||0
+  })).sort((a,b)=>b.leads-a.leads);
+
+  // KPI cards
+  const totalLeads=leads.length;
+  const totalPat=customers.length;
+  const totalRev=joined.reduce((s,j)=>s+j.paid,0);
+  const totalBuyers=[...new Set(joined.map(j=>j.customer.wylieId||normName(j.customer.fullName)))].length;
+
+  $('funnelKpis').innerHTML=`
+    <div class="kcard"><div class="klabel">Pipeline Leads</div><div class="kval">${totalLeads.toLocaleString()}</div><div class="ksub">Unconverted from Wylie</div></div>
+    <div class="kcard"><div class="klabel">Active Patients</div><div class="kval ok">${totalPat.toLocaleString()}</div><div class="ksub">Customer Zone</div></div>
+    <div class="kcard"><div class="klabel">Buying Patients</div><div class="kval ok">${totalBuyers.toLocaleString()}</div><div class="ksub">w/ revenue in period</div></div>
+    <div class="kcard"><div class="klabel">Total Revenue</div><div class="kval ok">${fmt$(totalRev)}</div></div>`;
+
+  $('tFunnel').innerHTML=rows.map(d=>{
+    const lc=sc(d.src);
+    const patPct=d.patients>0?(d.buyers/d.patients*100).toFixed(0)+'%':'—';
+    return `<tr>
+      <td>${badge(d.src)}</td>
+      <td><strong>${d.leads.toLocaleString()}</strong></td>
+      <td>${d.patients.toLocaleString()}</td>
+      <td>—</td>
+      <td>${d.buyers}</td>
+      <td>${patPct}</td>
+      <td class="m-pos">${d.paid>0?fmt$(d.paid):'—'}</td>
+      <td class="dim">${d.paid>0&&d.leads>0?fmt$(d.paid/d.leads):'—'}</td>
+    </tr>`;
+  }).join('');
+
+  // Chart: leads by source (unconverted pipeline) — count axis
+  const leadRows=rows.filter(r=>r.leads>0).sort((a,b)=>b.leads-a.leads);
+  renderBarH('cLeadsSrc',{labels:leadRows.map(r=>r.src),data:leadRows.map(r=>r.leads),colors:leadRows.map(r=>sc(r.src)),isCurrency:false});
+
+  // Chart: patients by source (converted) — count axis
+  const patRows=rows.filter(r=>r.patients>0).sort((a,b)=>b.patients-a.patients);
+  renderBarH('cLeadConv',{labels:patRows.map(r=>r.src),data:patRows.map(r=>r.patients),colors:patRows.map(r=>sc(r.src)),isCurrency:false});
+
+  const ulSrcs=[...new Set(S.leads.map(l=>l.source))].sort();
+  $('ulSrcFilter').innerHTML='<option value="">All Sources</option>'+ulSrcs.map(s=>`<option>${s}</option>`).join('');
+  renderUnmatchedLeads();
+}
+
+function renderUnmatchedLeads(){
+  const q=($('ulSearch').value||'').toLowerCase();
+  const sf=$('ulSrcFilter').value;
+  let list=[...S.leadUnmatched];
+  if(q)  list=list.filter(l=>l.name.toLowerCase().includes(q)||l.email.toLowerCase().includes(q));
+  if(sf) list=list.filter(l=>l.source===sf);
+  list.sort((a,b)=>(b.leadAdded||0)-(a.leadAdded||0));
+  $('ulCount').textContent=`${list.length} unmatched leads`;
+  $('tUnmatchedLeads').innerHTML=list.map(l=>`
+    <tr>
+      <td><strong>${l.name}</strong>${l.email?`<br><span class="dim">${l.email}</span>`:''}</td>
+      <td>${badge(l.source)}</td>
+      <td>${l.owner||'—'}</td>
+      <td>${l.referredBy||'—'}</td>
+      <td>${l.city||'—'}</td>
+      <td><span class="dim">${l.status||'—'}</span></td>
+      <td style="white-space:nowrap">${fmtDate(l.leadAdded)}</td>
+      <td style="white-space:nowrap">${fmtDate(l.lastInteraction)}</td>
+    </tr>`).join('');
+}
+
+// ─────────────────────────────────────────────
+// AGGREGATION
+// ─────────────────────────────────────────────
+function aggBySrc(joined){
+  const map={};
+  joined.forEach(j=>{
+    const src=j.customer.source;
+    if(!map[src]) map[src]={source:src,patients:new Set(),packages:0,invoices:0,paid:0,out:0};
+    map[src].patients.add(j.customer.wylieId||normName(j.customer.fullName));
+    map[src].paid+=j.paid; map[src].out+=j.out;
+    if(j.type==='Package') map[src].packages++; else map[src].invoices++;
+  });
+  return Object.values(map).map(s=>({...s,patientCount:s.patients.size}));
+}
+
+// ─────────────────────────────────────────────
+// CHARTS
+// ─────────────────────────────────────────────
+function destroyChart(id){
+  if(S.charts[id]){ S.charts[id].destroy(); delete S.charts[id]; }
+}
+
+function renderBarH(id,{labels,data,colors,isCurrency=true}){
+  destroyChart(id);
+  const ctx=$(id); if(!ctx) return;
+  const fmtTick = isCurrency ? (v=>fmt$(v)) : (v=>Number.isInteger(v)?v:'');
+  const fmtTip  = isCurrency ? (c=>' '+fmt$(c.raw)) : (c=>` ${c.raw}`);
+  S.charts[id]=new Chart(ctx,{
+    type:'bar',
+    data:{labels,datasets:[{data,backgroundColor:colors,borderRadius:4,borderSkipped:false}]},
+    options:{
+      indexAxis:'y',responsive:true,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:fmtTip}}},
+      scales:{
+        x:{ticks:{callback:fmtTick,font:{size:11}},grid:{color:'#F3F4F6'}},
+        y:{grid:{display:false},ticks:{font:{size:12}}}
+      }
+    }
+  });
+}
+
+function renderDonut(id,{labels,data,colors}){
+  destroyChart(id);
+  const ctx=$(id); if(!ctx) return;
+  S.charts[id]=new Chart(ctx,{
+    type:'doughnut',
+    data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#fff'}]},
+    options:{
+      responsive:true,cutout:'60%',
+      plugins:{
+        legend:{position:'right',labels:{font:{size:11},padding:10,boxWidth:12}},
+        tooltip:{callbacks:{label:c=>` ${c.label}: ${fmt$(c.raw)}`}}
+      }
+    }
+  });
+}
+
+function renderMonthly(id,joined){
+  destroyChart(id);
+  const ctx=$(id); if(!ctx) return;
+  const mmap={};
+  joined.forEach(j=>{
+    if(!j.date) return;
+    const k=`${j.date.getFullYear()}-${String(j.date.getMonth()+1).padStart(2,'0')}`;
+    if(!mmap[k]) mmap[k]={paid:0,pkg:0};
+    mmap[k].paid+=j.paid;
+    if(j.type==='Package') mmap[k].pkg+=j.paid;
+  });
+  const months=Object.keys(mmap).sort();
+  const labels=months.map(m=>{
+    const [y,mo]=m.split('-');
+    return new Date(+y,+mo-1).toLocaleDateString('en-US',{month:'short',year:'2-digit'});
+  });
+  S.charts[id]=new Chart(ctx,{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'Total Paid',data:months.map(m=>mmap[m].paid),backgroundColor:'#2466A0',borderRadius:4},
+      {label:'Packages',  data:months.map(m=>mmap[m].pkg), backgroundColor:'#1B3A5C',borderRadius:4}
+    ]},
+    options:{
+      responsive:true,
+      plugins:{
+        legend:{position:'top',labels:{font:{size:11},boxWidth:12}},
+        tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${fmt$(c.raw)}`}}
+      },
+      scales:{
+        x:{grid:{display:false},ticks:{font:{size:11},maxTicksLimit:12,maxRotation:45}},
+        y:{ticks:{callback:v=>fmt$(v),font:{size:11}},grid:{color:'#F3F4F6'}}
+      }
+    }
+  });
+}
+
+// ─────────────────────────────────────────────
+// TABS
+// ─────────────────────────────────────────────
+function switchTab(tab,el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  $('tab-'+tab).classList.add('active');
+  if(tab==='digital') initDigitalTab();
+}
+
+// ─────────────────────────────────────────────
+// DIGITAL — Google API Integration
+// ─────────────────────────────────────────────
+const GD={
+  token:null, tokenExpiry:0,
+  clientId:'220749557886-5n5310cmdkdsi8g56980jsokqidkfdhn.apps.googleusercontent.com',
+  siteUrl:'sc-domain:contoursllc.com',
+  ga4Prop:'333746527',
+  tokenClient:null
+};
+
+function initDigitalTab(){
+  gdSetDefaultDates();
+  if(GD.token && Date.now()<GD.tokenExpiry){
+    $('gdSetup').style.display='none';
+    $('gdConnected').style.display='block';
+    return;
+  }
+  // Silent re-auth if previously connected
+  if(localStorage.getItem('gd_was_connected') && typeof google!=='undefined' && google.accounts){
+    if(!GD.tokenClient){
+      GD.tokenClient=google.accounts.oauth2.initTokenClient({
+        client_id:GD.clientId,
+        scope:'https://www.googleapis.com/auth/webmasters.readonly https://www.googleapis.com/auth/analytics.readonly',
+        callback:(resp)=>{
+          if(resp.error) return;
+          GD.token=resp.access_token;
+          GD.tokenExpiry=Date.now()+(parseInt(resp.expires_in||3600)-60)*1000;
+          $('gdSetup').style.display='none';
+          $('gdConnected').style.display='block';
+          gdSetDefaultDates();
+          fetchGSC();
+          loadGA4();
+        }
+      });
+    }
+    GD.tokenClient.requestAccessToken({prompt:''});
+  }
+}
+
+function gdSetDefaultDates(){
+  if($('gdFrom').value) return; // already set
+  const to=new Date(); to.setDate(to.getDate()-2); // GSC lags ~2 days
+  const from=new Date(to); from.setDate(from.getDate()-27);
+  $('gdFrom').value=from.toISOString().split('T')[0];
+  $('gdTo').value=to.toISOString().split('T')[0];
+}
+
+async function loadGDData(){
+  if(!GD.token){alert('Connect Google first');return;}
+  const [from,to]=gdDateRange();
+  if(!from||!to){alert('Select a date range first');return;}
+  if(from>to){alert('Start date must be before end date');return;}
+  fetchGSC();
+  loadGA4();
+}
+
+function connectGD(){
+  if(typeof google==='undefined'||!google.accounts){
+    gdErr('gdSetupError','Google library not loaded yet — wait a moment and try again.');return;
+  }
+  GD.tokenClient=google.accounts.oauth2.initTokenClient({
+    client_id:GD.clientId,
+    scope:'https://www.googleapis.com/auth/webmasters.readonly https://www.googleapis.com/auth/analytics.readonly',
+    callback:(resp)=>{
+      if(resp.error){gdErr('gdSetupError','Auth error: '+resp.error);return;}
+      GD.token=resp.access_token;
+      GD.tokenExpiry=Date.now()+(parseInt(resp.expires_in||3600)-60)*1000;
+      localStorage.setItem('gd_was_connected','1');
+      $('gdSetup').style.display='none';
+      $('gdConnected').style.display='block';
+      $('gdSetupError').style.display='none';
+      gdSetDefaultDates();
+      fetchGSC();
+      loadGA4();
+    }
+  });
+  GD.tokenClient.requestAccessToken({prompt:''});
+}
+
+function refreshGD(){
+  if(!GD.tokenClient){connectGD();return;}
+  GD.tokenClient.requestAccessToken({prompt:''});
+}
+
+function disconnectGD(){
+  if(GD.token) try{google.accounts.oauth2.revoke(GD.token,()=>{});}catch(e){}
+  GD.token=null; GD.tokenExpiry=0; GD.tokenClient=null;
+  ['cGscClicks','cGscPages','cGa4Channels','cGa4Sessions'].forEach(destroyChart);
+  $('gdConnected').style.display='none';
+  $('gdSetup').style.display='block';
+  $('gdGscContent').style.display='none';
+  $('gdGa4Content').style.display='none';
+}
+
+// ── GSC ──────────────────────────────────────
+async function fetchGSC(){
+  const site=GD.siteUrl; if(!site) return;
+  $('gdGscSpinner').style.display='block';
+  $('gdGscContent').style.display='none';
+  $('gdGscError').style.display='none';
+  const [from,to]=gdDateRange();
+  try{
+    const [byDate,byQuery,byPage]=await Promise.all([
+      gscPost(site,{startDate:from,endDate:to,dimensions:['date'],rowLimit:90}),
+      gscPost(site,{startDate:from,endDate:to,dimensions:['query'],rowLimit:20}),
+      gscPost(site,{startDate:from,endDate:to,dimensions:['page'],rowLimit:10})
+    ]);
+    renderGSC(byDate,byQuery,byPage);
+    $('gdGscSpinner').style.display='none';
+    $('gdGscContent').style.display='block';
+  }catch(e){
+    $('gdGscSpinner').style.display='none';
+    gdErr('gdGscError','Search Console error: '+e.message);
+  }
+}
+
+async function gscPost(siteUrl,body){
+  return gdFetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`,{method:'POST',body:JSON.stringify(body)});
+}
+
+function renderGSC(byDate,byQuery,byPage){
+  const rows=(byDate.rows||[]).sort((a,b)=>a.keys[0].localeCompare(b.keys[0]));
+  const t=rows.reduce((a,r)=>({clicks:a.clicks+r.clicks,imp:a.imp+r.impressions,wpos:a.wpos+r.position*r.impressions}),{clicks:0,imp:0,wpos:0});
+  const ctr=t.imp?(t.clicks/t.imp*100).toFixed(1):'0.0';
+  const pos=t.imp?(t.wpos/t.imp).toFixed(1):'—';
+  $('gscKpis').innerHTML=[
+    {l:'Total Clicks',v:t.clicks.toLocaleString(),s:'Organic'},
+    {l:'Impressions',v:t.imp.toLocaleString(),s:'In search results'},
+    {l:'Avg CTR',v:ctr+'%',s:'Click-through rate'},
+    {l:'Avg Position',v:pos,s:'Search ranking'}
+  ].map(k=>`<div class="gd-kpi"><div class="gd-klabel">${k.l}</div><div class="gd-kval">${k.v}</div><div class="gd-ksub">${k.s}</div></div>`).join('');
+
+  renderLineChart('cGscClicks',{labels:rows.map(r=>r.keys[0]),data:rows.map(r=>r.clicks),label:'Clicks',color:'#4285F4'});
+
+  const pRows=(byPage.rows||[]).slice(0,8);
+  const pLabels=pRows.map(r=>{try{const p=new URL(r.keys[0]).pathname;return p==='/'?'/':p.slice(0,28);}catch(e){return r.keys[0].slice(0,28);}});
+  renderBarH('cGscPages',{labels:pLabels,data:pRows.map(r=>r.clicks),colors:pRows.map(()=>'#4285F4'),isCurrency:false});
+
+  const qRows=(byQuery.rows||[]).slice(0,15);
+  $('tGscQueries').innerHTML=qRows.map(r=>`<tr><td>${r.keys[0]}</td><td>${r.clicks}</td><td>${r.impressions.toLocaleString()}</td><td>${(r.ctr*100).toFixed(1)}%</td><td>${r.position.toFixed(1)}</td></tr>`).join('')
+    ||'<tr><td colspan="5" class="dim" style="text-align:center;padding:14px">No data for this date range</td></tr>';
+}
+
+// ── GA4 ──────────────────────────────────────
+async function loadGA4(){
+  const prop=GD.ga4Prop; if(!prop){return;}
+  $('gdGa4Spinner').style.display='block';
+  $('gdGa4Content').style.display='none';
+  $('gdGa4Error').style.display='none';
+  const [from,to]=gdDateRange();
+  try{
+    const [byChan,byDate]=await Promise.all([
+      ga4Post(prop,{dateRanges:[{startDate:from,endDate:to}],dimensions:[{name:'sessionDefaultChannelGroup'}],metrics:[{name:'sessions'},{name:'totalUsers'},{name:'conversions'}],orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:15}),
+      ga4Post(prop,{dateRanges:[{startDate:from,endDate:to}],dimensions:[{name:'date'}],metrics:[{name:'sessions'},{name:'totalUsers'}],orderBys:[{dimension:{dimensionName:'date'}}],limit:90})
+    ]);
+    renderGA4(byChan,byDate);
+    $('gdGa4Spinner').style.display='none';
+    $('gdGa4Content').style.display='block';
+  }catch(e){
+    $('gdGa4Spinner').style.display='none';
+    gdErr('gdGa4Error','GA4 error: '+e.message);
+  }
+}
+
+async function ga4Post(prop,body){
+  return gdFetch(`https://analyticsdata.googleapis.com/v1beta/properties/${prop}:runReport`,{method:'POST',body:JSON.stringify(body)});
+}
+
+function renderGA4(byChan,byDate){
+  const rows=byChan.rows||[];
+  const t=rows.reduce((a,r)=>({ses:a.ses+parseInt(r.metricValues[0].value||0),usr:a.usr+parseInt(r.metricValues[1].value||0),cvr:a.cvr+parseInt(r.metricValues[2].value||0)}),{ses:0,usr:0,cvr:0});
+  $('ga4Kpis').innerHTML=[
+    {l:'Sessions',v:t.ses.toLocaleString()},{l:'Users',v:t.usr.toLocaleString()},
+    {l:'Conversions',v:t.cvr.toLocaleString()},{l:'Sessions/User',v:t.usr?(t.ses/t.usr).toFixed(2):'—'}
+  ].map(k=>`<div class="gd-kpi"><div class="gd-klabel">${k.l}</div><div class="gd-kval">${k.v}</div></div>`).join('');
+
+  const chanColor=ch=>({'Organic Search':'#34A853','Direct':'#4285F4','Referral':'#FBBC04','Organic Social':'#E91E8C','Paid Search':'#EA4335','Email':'#FF6D00','Unassigned':'#9E9E9E'}[ch]||'#607D8B');
+  renderBarH('cGa4Channels',{labels:rows.map(r=>r.dimensionValues[0].value),data:rows.map(r=>parseInt(r.metricValues[0].value)),colors:rows.map(r=>chanColor(r.dimensionValues[0].value)),isCurrency:false});
+
+  const dRows=(byDate.rows||[]).sort((a,b)=>a.dimensionValues[0].value.localeCompare(b.dimensionValues[0].value));
+  renderLineChart('cGa4Sessions',{labels:dRows.map(r=>r.dimensionValues[0].value),data:dRows.map(r=>parseInt(r.metricValues[0].value)),label:'Sessions',color:'#34A853'});
+}
+
+// ── Helpers ──────────────────────────────────
+async function gdFetch(url,opts={}){
+  if(!GD.token) throw new Error('Not authenticated');
+  const r=await fetch(url,{...opts,headers:{'Authorization':'Bearer '+GD.token,'Content-Type':'application/json',...(opts.headers||{})}});
+  const data=await r.json();
+  if(!r.ok) throw new Error(data.error?.message||`HTTP ${r.status}`);
+  return data;
+}
+
+function gdDateRange(){return[$('gdFrom').value,$('gdTo').value];}
+
+function gdErr(id,msg){const el=$(id);if(!el)return;el.textContent=msg;el.style.display='block';}
+
+function renderLineChart(id,{labels,data,label,color}){
+  destroyChart(id);
+  const ctx=$(id); if(!ctx) return;
+  S.charts[id]=new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets:[{label,data,borderColor:color,backgroundColor:color+'22',fill:true,tension:0.3,pointRadius:labels.length>30?0:2,borderWidth:2}]},
+    options:{
+      responsive:true,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{maxTicksLimit:7,font:{size:10},maxRotation:0},grid:{display:false}},
+        y:{ticks:{font:{size:11}},grid:{color:'#F3F4F6'}}
+      }
+    }
+  });
+}
+</script>
+</body>
+</html>
