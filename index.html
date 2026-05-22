@@ -181,7 +181,7 @@ tbody td{padding:9px 11px;color:#374151;vertical-align:middle}
 footer{text-align:center;padding:24px;color:#9CA3AF;font-size:11.5px}
 
 /* ── Responsive ── */
-@media(max-width:1200px){.kpi-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:1400px){.kpi-grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:900px){.charts-2{grid-template-columns:1fr}.kpi-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
@@ -306,8 +306,9 @@ footer{text-align:center;padding:24px;color:#9CA3AF;font-size:11.5px}
 
   <!-- ═══ OVERVIEW ═══ -->
   <div id="tab-overview" class="tab-content active">
-    <div class="kpi-grid">
-      <div class="kcard"><div class="klabel">Total Revenue (Paid)</div><div class="kval ok" id="kRevenue">—</div></div>
+    <div class="kpi-grid" style="grid-template-columns:repeat(6,1fr)">
+      <div class="kcard"><div class="klabel">Package Revenue</div><div class="kval ok" id="kPkgRev">—</div><div class="ksub" id="kPkgRevSub"></div></div>
+      <div class="kcard"><div class="klabel">Service Revenue</div><div class="kval ok" id="kSvcRev">—</div><div class="ksub" id="kSvcRevSub"></div></div>
       <div class="kcard"><div class="klabel">Outstanding Balance</div><div class="kval warn" id="kOutstanding">—</div></div>
       <div class="kcard"><div class="klabel">New Patients</div><div class="kval" id="kPatients">—</div><div class="ksub" id="kPatientsSub"></div></div>
       <div class="kcard"><div class="klabel">Packages Sold</div><div class="kval" id="kPackages">—</div></div>
@@ -1013,13 +1014,18 @@ function populateFilters(){
 // OVERVIEW
 // ─────────────────────────────────────────────
 function renderOverview(joined,customers){
-  const paid   = joined.reduce((s,j)=>s+j.paid,0);
-  const out    = joined.reduce((s,j)=>s+j.out,0);
   const pkgs   = joined.filter(j=>j.type==='Package');
+  const svcs   = joined.filter(j=>j.type==='Invoice');
+  const pkgPaid= pkgs.reduce((s,j)=>s+j.paid,0);
+  const pkgOut = pkgs.reduce((s,j)=>s+j.out,0);
+  const svcPaid= svcs.reduce((s,j)=>s+j.paid,0);
   const avgPkg = pkgs.length ? pkgs.reduce((s,j)=>s+j.total,0)/pkgs.length : 0;
 
-  $('kRevenue').textContent    = fmt$(paid);
-  $('kOutstanding').textContent= fmt$(out);
+  $('kPkgRev').textContent     = fmt$(pkgPaid);
+  $('kPkgRevSub').textContent  = pkgOut>0 ? fmt$(pkgOut)+' outstanding' : '';
+  $('kSvcRev').textContent     = fmt$(svcPaid);
+  $('kSvcRevSub').textContent  = svcs.length ? svcs.length+' invoices' : '';
+  $('kOutstanding').textContent= fmt$(pkgOut);
   $('kPatients').textContent   = customers.length.toLocaleString();
   $('kPackages').textContent   = pkgs.length.toLocaleString();
   $('kAvgPkg').textContent     = fmt$(avgPkg);
