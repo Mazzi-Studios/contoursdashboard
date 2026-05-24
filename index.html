@@ -965,6 +965,17 @@ function filteredJoined(){
   });
 }
 
+function filteredLeads(){
+  const f=getFrom(),t=getTo();
+  if(!f&&!t) return S.leads;
+  return S.leads.filter(l=>{
+    if(!l.leadAdded) return false;
+    if(f&&l.leadAdded<f) return false;
+    if(t&&l.leadAdded>t) return false;
+    return true;
+  });
+}
+
 // All sales (matched + unmatched) for revenue totals — matching is attribution only
 function filteredAllSales(){
   const f=getFrom(),t=getTo();
@@ -1380,7 +1391,7 @@ function renderFunnel(){
   // So Leads CSV = current unconverted pipeline; Customer Zone = converted patients.
   // We show them side-by-side to reveal source quality.
 
-  const leads    = S.leads;  // all unconverted pipeline, not date-filtered
+  const leads    = filteredLeads();
   const joined   = filteredJoined();
   const customers= filteredCustomers();
 
@@ -1446,7 +1457,7 @@ function renderFunnel(){
   const patRows=rows.filter(r=>r.patients>0).sort((a,b)=>b.patients-a.patients);
   renderBarH('cLeadConv',{labels:patRows.map(r=>r.src),data:patRows.map(r=>r.patients),colors:patRows.map(r=>sc(r.src)),isCurrency:false});
 
-  const ulSrcs=[...new Set(S.leads.map(l=>l.source))].sort();
+  const ulSrcs=[...new Set(leads.map(l=>l.source))].sort();
   $('ulSrcFilter').innerHTML='<option value="">All Sources</option>'+ulSrcs.map(s=>`<option>${s}</option>`).join('');
   renderUnmatchedLeads();
 }
