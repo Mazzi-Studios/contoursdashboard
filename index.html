@@ -82,6 +82,12 @@ header{background:linear-gradient(135deg,#1B3A5C 0%,#2466A0 100%);color:#fff;pad
 .tab-content{display:none;padding:22px 24px}
 .tab-content.active{display:block}
 
+/* ── Sortable Tables ── */
+th.sortable{cursor:pointer;user-select:none;white-space:nowrap}
+th.sortable:hover{background:#F0F4FF;color:#1B3A5C}
+th.sortable .sort-icon{display:inline-block;margin-left:4px;opacity:.35;font-size:10px;vertical-align:middle}
+th.sortable.sort-asc .sort-icon,th.sortable.sort-desc .sort-icon{opacity:1;color:#2466A0}
+
 /* ── KPI Section Labels ── */
 .kpi-section-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#6B7280;padding:16px 0 6px;border-top:1px solid #E5E7EB;margin-top:4px}
 .kpi-section-label:first-of-type{border-top:none;padding-top:0}
@@ -1060,6 +1066,51 @@ function populateFilters(){
 }
 
 // ─────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// SORTABLE TABLES
+// ─────────────────────────────────────────────
+function makeSortable(tableId){
+  const tbl=$(''+tableId); if(!tbl) return;
+  const tr=tbl.querySelector('thead tr'); if(!tr) return;
+  let col=-1,dir=1;
+  [...tr.children].forEach((th,i)=>{
+    th.classList.add('sortable');
+    if(!th.querySelector('.sort-icon')){
+      const ic=document.createElement('span');
+      ic.className='sort-icon'; ic.textContent='⇅'; th.appendChild(ic);
+    }
+    th.addEventListener('click',()=>{
+      dir=(col===i)?-dir:1; col=i;
+      [...tr.children].forEach((h,j)=>{
+        h.classList.remove('sort-asc','sort-desc');
+        const ic=h.querySelector('.sort-icon');
+        if(ic) ic.textContent='⇅';
+      });
+      th.classList.add(dir===1?'sort-asc':'sort-desc');
+      const ic=th.querySelector('.sort-icon');
+      if(ic) ic.textContent=dir===1?'▲':'▼';
+      const tbody=tbl.querySelector('tbody');
+      [...tbody.rows].sort((a,b)=>{
+        const av=parseCell(a.cells[i]?.textContent||'');
+        const bv=parseCell(b.cells[i]?.textContent||'');
+        if(typeof av==='number'&&typeof bv==='number') return dir*(av-bv);
+        return dir*String(av).localeCompare(String(bv));
+      }).forEach(r=>tbody.appendChild(r));
+    });
+  });
+}
+function parseCell(txt){
+  const s=txt.trim();
+  if(s==='—'||s===''||s==='$0') return -Infinity;
+  if(s.startsWith('$')) return parseFloat(s.replace(/[$,]/g,''))||0;
+  if(s.endsWith('%')) return parseFloat(s)||0;
+  if(s.endsWith('x')) return parseFloat(s)||0;
+  const n=parseFloat(s.replace(/,/g,''));
+  if(!isNaN(n)) return n;
+  const d=new Date(s); if(!isNaN(d)) return d.getTime();
+  return s.toLowerCase();
+}
+
 // OVERVIEW
 // ─────────────────────────────────────────────
 function renderOverview(allSales,joined,customers){
@@ -1128,6 +1179,7 @@ function renderOverview(allSales,joined,customers){
       <td class="m-pos">${fmt$(j.paid)}</td>
       <td class="${j.out>0?'m-neg':''}">${j.out>0?fmt$(j.out):'—'}</td>
     </tr>`).join('');
+  makeSortable('tRecent');
 }
 
 // ─────────────────────────────────────────────
@@ -1166,6 +1218,7 @@ function renderAttribution(joined,customers){
       </td>
     </tr>`;
   }).join('');
+  makeSortable('tAttribution');
 
   // Source donut
   renderDonut('cSourceDonut',{
@@ -1262,6 +1315,8 @@ function renderSales(joined){
       <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#6B7280;font-size:11.5px">${j.notes||'—'}</td>
     </tr>`).join('')
     :'<tr><td colspan="9" style="text-align:center;padding:24px;color:#27AE60">🎉 No outstanding balances</td></tr>';
+  makeSortable('tPackages');
+  makeSortable('tOutstanding');
 }
 
 // ─────────────────────────────────────────────
@@ -1297,6 +1352,7 @@ function renderPatients(){
       <td>${c.daysAppt!==null?c.daysAppt+'d':'—'}</td>
     </tr>`).join('')
     :'<tr><td colspan="9" style="text-align:center;padding:28px;color:#9CA3AF">No patients match your filters</td></tr>';
+  makeSortable('tPatients');
 }
 
 function exportPatients(){
@@ -1448,6 +1504,7 @@ function renderFunnel(){
       <td class="dim">${d.paid>0&&d.leads>0?fmt$(d.paid/d.leads):'—'}</td>
     </tr>`;
   }).join('');
+  makeSortable('tFunnel');
 
   // Chart: leads by source (unconverted pipeline) — count axis
   const leadRows=rows.filter(r=>r.leads>0).sort((a,b)=>b.leads-a.leads);
@@ -1481,6 +1538,7 @@ function renderUnmatchedLeads(){
       <td style="white-space:nowrap">${fmtDate(l.leadAdded)}</td>
       <td style="white-space:nowrap">${fmtDate(l.lastInteraction)}</td>
     </tr>`).join('');
+  makeSortable('tUnmatchedLeads');
 }
 
 // ─────────────────────────────────────────────
@@ -1729,6 +1787,7 @@ function renderGSC(byDate,byQuery,byPage){
   const qRows=(byQuery.rows||[]).slice(0,15);
   $('tGscQueries').innerHTML=qRows.map(r=>`<tr><td>${r.keys[0]}</td><td>${r.clicks}</td><td>${r.impressions.toLocaleString()}</td><td>${(r.ctr*100).toFixed(1)}%</td><td>${r.position.toFixed(1)}</td></tr>`).join('')
     ||'<tr><td colspan="5" class="dim" style="text-align:center;padding:14px">No data for this date range</td></tr>';
+  makeSortable('tGscQueries');
 }
 
 // ── GA4 ──────────────────────────────────────
