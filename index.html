@@ -1070,7 +1070,8 @@ function populateFilters(){
 // SORTABLE TABLES
 // ─────────────────────────────────────────────
 function makeSortable(tableId){
-  const tbl=$(''+tableId); if(!tbl) return;
+  const tbody=$(''+tableId); if(!tbody) return;
+  const tbl=tbody.closest('table'); if(!tbl) return;
   const tr=tbl.querySelector('thead tr'); if(!tr) return;
   let col=-1,dir=1;
   [...tr.children].forEach((th,i)=>{
