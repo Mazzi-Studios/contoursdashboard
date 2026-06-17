@@ -82,6 +82,17 @@ header{background:linear-gradient(135deg,#1B3A5C 0%,#2466A0 100%);color:#fff;pad
 .tab-content{display:none;padding:22px 24px}
 .tab-content.active{display:block}
 
+/* ── Trends MoM Strip ── */
+.mom-strip{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+.mom-card{background:#fff;border-radius:10px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,.06);min-width:130px;flex:1}
+.mom-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6B7280;margin-bottom:6px}
+.mom-val{font-size:20px;font-weight:700;color:#1B3A5C;line-height:1.2}
+.mom-delta{font-size:11px;font-weight:600;margin-top:4px}
+.mom-delta.mom-up{color:#059669}
+.mom-delta.mom-down{color:#DC2626}
+.mom-delta.mom-flat{color:#6B7280}
+.mom-from{font-size:10px;color:#9CA3AF;margin-top:2px}
+
 /* ── Sortable Tables ── */
 th.sortable{cursor:pointer;user-select:none;white-space:nowrap}
 th.sortable:hover{background:#F0F4FF;color:#1B3A5C}
@@ -313,6 +324,7 @@ footer{text-align:center;padding:24px;color:#9CA3AF;font-size:11.5px}
     <button class="tab" onclick="switchTab('sales',this)">Sales</button>
     <button class="tab" onclick="switchTab('patients',this)">Patients</button>
     <button class="tab" id="tabFunnelBtn" onclick="switchTab('funnel',this)">Funnel</button>
+    <button class="tab" onclick="switchTab('trends',this)">Trends</button>
     <button class="tab" onclick="switchTab('digital',this)">Digital</button>
   </div>
 
@@ -613,6 +625,47 @@ footer{text-align:center;padding:24px;color:#9CA3AF;font-size:11.5px}
 
     </div><!-- /gdConnected -->
   </div><!-- /tab-digital -->
+
+  <!-- ═══ TRENDS ═══ -->
+  <div id="tab-trends" class="tab-content">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+      <span style="font-size:15px;font-weight:700;color:#1B3A5C">Month-over-Month Trends</span>
+      <span style="font-size:12px;color:#9CA3AF">Date filter controls the range shown below</span>
+    </div>
+
+    <!-- MoM Delta Strip -->
+    <div id="trendsMom"></div>
+
+    <!-- Revenue Trend (full width) -->
+    <div class="chart-card" style="margin-bottom:16px">
+      <h3>Monthly Revenue — Package vs Service</h3>
+      <canvas id="cTrendRevenue" height="110"></canvas>
+    </div>
+
+    <!-- Row 2: Volume + Outstanding -->
+    <div class="charts-2" style="margin-bottom:16px">
+      <div class="chart-card">
+        <h3>New Patients &amp; Packages Sold</h3>
+        <canvas id="cTrendVolume" height="160"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>Outstanding Balance Added</h3>
+        <canvas id="cTrendOutstanding" height="160"></canvas>
+      </div>
+    </div>
+
+    <!-- Row 3: Leads + Avg Package Value -->
+    <div class="charts-2">
+      <div class="chart-card">
+        <h3>Lead Volume</h3>
+        <canvas id="cTrendLeads" height="160"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>Avg Package Value</h3>
+        <canvas id="cTrendAvgPkg" height="160"></canvas>
+      </div>
+    </div>
+  </div><!-- /tab-trends -->
 </div>
 
 <footer>Contours LLC Attribution Dashboard &nbsp;·&nbsp; Built by Mazzi Studios &nbsp;·&nbsp; Data source: Wylie EMR CSV exports</footer>
@@ -1054,6 +1107,7 @@ function renderAll(){
   renderSales(joined);
   renderPatients();
   renderFunnel();
+  renderTrends(filteredAllSales(),filteredLeads());
 }
 
 function populateFilters(){
@@ -1597,6 +1651,186 @@ function renderDonut(id,{labels,data,colors}){
       }
     }
   });
+}
+
+// ─────────────────────────────────────────────
+// TRENDS
+// ─────────────────────────────────────────────
+function renderTrends(allSales, leads){
+  const f=getFrom(), t=getTo();
+  const mk=d=>d?`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`:null;
+  const mmap={};
+
+  allSales.forEach(s=>{
+    if(!s.date) return;
+    const k=mk(s.date); if(!k) return;
+    if(!mmap[k]) mmap[k]={pkgPaid:0,svcPaid:0,pkgOut:0,pkgCount:0,pkgTotal:0,patients:0,leads:0};
+    if(s.type==='Package'){
+      mmap[k].pkgPaid+=s.paid; mmap[k].pkgOut+=s.out;
+      mmap[k].pkgCount++; mmap[k].pkgTotal+=s.total;
+    } else {
+      mmap[k].svcPaid+=s.paid;
+    }
+  });
+
+  S.customers.forEach(c=>{
+    if(!c.startDate) return;
+    if(f&&c.startDate<f) return;
+    if(t&&c.startDate>t) return;
+    const k=mk(c.startDate); if(!k) return;
+    if(!mmap[k]) mmap[k]={pkgPaid:0,svcPaid:0,pkgOut:0,pkgCount:0,pkgTotal:0,patients:0,leads:0};
+    mmap[k].patients++;
+  });
+
+  leads.forEach(l=>{
+    if(!l.leadAdded) return;
+    const k=mk(l.leadAdded); if(!k) return;
+    if(!mmap[k]) mmap[k]={pkgPaid:0,svcPaid:0,pkgOut:0,pkgCount:0,pkgTotal:0,patients:0,leads:0};
+    mmap[k].leads++;
+  });
+
+  const months=Object.keys(mmap).sort();
+  const noData='<div style="padding:32px;text-align:center;color:#9CA3AF;font-size:13px">No data — upload CSVs and select a date range</div>';
+
+  if(!months.length){
+    $('trendsMom').innerHTML='';
+    ['cTrendRevenue','cTrendVolume','cTrendOutstanding','cTrendLeads','cTrendAvgPkg'].forEach(id=>{
+      destroyChart(id);
+      const c=$(id); if(c) c.parentElement.insertAdjacentHTML('beforeend',noData);
+    });
+    return;
+  }
+
+  const labels=months.map(m=>{
+    const [y,mo]=m.split('-');
+    return new Date(+y,+mo-1).toLocaleDateString('en-US',{month:'short',year:'2-digit'});
+  });
+
+  const pkgPaid   =months.map(m=>mmap[m].pkgPaid);
+  const svcPaid   =months.map(m=>mmap[m].svcPaid);
+  const totalPaid =months.map((_,i)=>pkgPaid[i]+svcPaid[i]);
+  const pkgOut    =months.map(m=>mmap[m].pkgOut);
+  const pkgCount  =months.map(m=>mmap[m].pkgCount);
+  const patients  =months.map(m=>mmap[m].patients);
+  const leadsArr  =months.map(m=>mmap[m].leads);
+  const avgPkg    =months.map(m=>mmap[m].pkgCount?mmap[m].pkgPaid/mmap[m].pkgCount:0);
+
+  renderTrendsMom(months,mmap,totalPaid,pkgPaid,svcPaid,pkgCount,patients,leadsArr);
+
+  const baseOpts=(yFmt)=>({
+    responsive:true,
+    plugins:{legend:{position:'top',labels:{font:{size:11},boxWidth:12}},tooltip:{mode:'index',intersect:false}},
+    scales:{
+      x:{grid:{display:false},ticks:{font:{size:11},maxTicksLimit:12,maxRotation:45}},
+      y:{ticks:{callback:yFmt,font:{size:11}},grid:{color:'#F3F4F6'}}
+    }
+  });
+
+  // Chart 1: Revenue (stacked bars + total line)
+  destroyChart('cTrendRevenue');
+  S.charts['cTrendRevenue']=new Chart($('cTrendRevenue'),{
+    data:{labels,datasets:[
+      {type:'bar',  label:'Package Revenue', data:pkgPaid,  backgroundColor:'#2466A0',borderRadius:4,stack:'rev'},
+      {type:'bar',  label:'Service Revenue', data:svcPaid,  backgroundColor:'#34A85A',borderRadius:4,stack:'rev'},
+      {type:'line', label:'Total Paid',      data:totalPaid,borderColor:'#F59E0B',backgroundColor:'transparent',
+       pointRadius:4,pointBackgroundColor:'#F59E0B',borderWidth:2,tension:.3,yAxisID:'y'}
+    ]},
+    options:{
+      responsive:true,
+      plugins:{legend:{position:'top',labels:{font:{size:11},boxWidth:12}},
+               tooltip:{mode:'index',intersect:false,callbacks:{label:c=>` ${c.dataset.label}: ${fmt$(c.raw)}`}}},
+      scales:{
+        x:{grid:{display:false},ticks:{font:{size:11},maxTicksLimit:12,maxRotation:45}},
+        y:{ticks:{callback:v=>fmt$(v),font:{size:11}},grid:{color:'#F3F4F6'},stacked:true}
+      }
+    }
+  });
+
+  // Chart 2: New Patients + Packages Sold
+  destroyChart('cTrendVolume');
+  S.charts['cTrendVolume']=new Chart($('cTrendVolume'),{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'New Patients',  data:patients, backgroundColor:'#7C3AED',borderRadius:4},
+      {label:'Packages Sold', data:pkgCount, backgroundColor:'#2466A0',borderRadius:4}
+    ]},
+    options:{...baseOpts(v=>v),plugins:{legend:{position:'top',labels:{font:{size:11},boxWidth:12}},tooltip:{mode:'index',intersect:false}},
+      scales:{x:{grid:{display:false},ticks:{font:{size:11},maxTicksLimit:12,maxRotation:45}},
+              y:{ticks:{stepSize:1,font:{size:11}},grid:{color:'#F3F4F6'}}}}
+  });
+
+  // Chart 3: Outstanding
+  destroyChart('cTrendOutstanding');
+  S.charts['cTrendOutstanding']=new Chart($('cTrendOutstanding'),{
+    type:'bar',
+    data:{labels,datasets:[{label:'Outstanding',data:pkgOut,backgroundColor:'#D97706',borderRadius:4}]},
+    options:{
+      responsive:true,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` Outstanding: ${fmt$(c.raw)}`}}},
+      scales:{x:{grid:{display:false},ticks:{font:{size:11},maxTicksLimit:12,maxRotation:45}},
+              y:{ticks:{callback:v=>fmt$(v),font:{size:11}},grid:{color:'#F3F4F6'}}}
+    }
+  });
+
+  // Chart 4: Leads
+  destroyChart('cTrendLeads');
+  S.charts['cTrendLeads']=new Chart($('cTrendLeads'),{
+    type:'bar',
+    data:{labels,datasets:[{label:'Leads',data:leadsArr,backgroundColor:'#0EA5E9',borderRadius:4}]},
+    options:{
+      responsive:true,
+      plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false}},
+      scales:{x:{grid:{display:false},ticks:{font:{size:11},maxTicksLimit:12,maxRotation:45}},
+              y:{ticks:{stepSize:1,font:{size:11}},grid:{color:'#F3F4F6'}}}
+    }
+  });
+
+  // Chart 5: Avg Package Value
+  destroyChart('cTrendAvgPkg');
+  S.charts['cTrendAvgPkg']=new Chart($('cTrendAvgPkg'),{
+    type:'line',
+    data:{labels,datasets:[{label:'Avg Package Value',data:avgPkg,borderColor:'#2466A0',
+      backgroundColor:'rgba(36,102,160,.08)',fill:true,pointRadius:4,pointBackgroundColor:'#2466A0',
+      borderWidth:2,tension:.3}]},
+    options:{
+      responsive:true,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` Avg Package: ${fmt$(c.raw)}`}}},
+      scales:{x:{grid:{display:false},ticks:{font:{size:11},maxTicksLimit:12,maxRotation:45}},
+              y:{ticks:{callback:v=>fmt$(v),font:{size:11}},grid:{color:'#F3F4F6'}}}
+    }
+  });
+}
+
+function renderTrendsMom(months,mmap,totalPaid,pkgPaid,svcPaid,pkgCount,patients,leadsArr){
+  const el=$('trendsMom'); if(!el) return;
+  if(months.length<2){el.innerHTML='';return;}
+  const last=months.length-1, prev=last-1;
+  const prevLabel=(()=>{
+    const [y,mo]=months[prev].split('-');
+    return new Date(+y,+mo-1).toLocaleDateString('en-US',{month:'short',year:'2-digit'});
+  })();
+  const card=(label,cur,prv,isCurrency)=>{
+    const diff=cur-prv;
+    const pct=prv?(diff/prv*100):(cur?100:0);
+    const dir=diff>0?'up':diff<0?'down':'flat';
+    const arrow=dir==='up'?'↑':dir==='down'?'↓':'→';
+    const val=isCurrency?fmt$(cur):cur.toLocaleString();
+    const chg=isCurrency?fmt$(Math.abs(diff)):Math.abs(diff).toLocaleString();
+    return `<div class="mom-card">
+      <div class="mom-label">${label}</div>
+      <div class="mom-val">${val}</div>
+      <div class="mom-delta mom-${dir}">${arrow} ${chg} (${Math.abs(pct).toFixed(1)}%)</div>
+      <div class="mom-from">vs ${prevLabel}</div>
+    </div>`;
+  };
+  el.innerHTML=`<div class="mom-strip">
+    ${card('Total Paid',    totalPaid[last],totalPaid[prev],true)}
+    ${card('Pkg Revenue',   pkgPaid[last],  pkgPaid[prev],  true)}
+    ${card('Svc Revenue',   svcPaid[last],  svcPaid[prev],  true)}
+    ${card('Pkgs Sold',     pkgCount[last], pkgCount[prev], false)}
+    ${card('New Patients',  patients[last], patients[prev], false)}
+    ${card('Leads',         leadsArr[last], leadsArr[prev], false)}
+  </div>`;
 }
 
 function renderMonthly(id,joined){
