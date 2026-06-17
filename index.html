@@ -32,11 +32,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 header{background:linear-gradient(135deg,#1B3A5C 0%,#2466A0 100%);color:#fff;padding:14px 24px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 12px rgba(0,0,0,.25);position:sticky;top:0;z-index:100}
 .hbrand h1{font-size:20px;font-weight:700;letter-spacing:-.3px}
 .hbrand p{font-size:12px;opacity:.7;margin-top:1px}
-.hcontrols{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.hcontrols{display:flex;flex-direction:column;align-items:flex-end;gap:7px}
+.hcontrols-top{display:flex;align-items:center;gap:8px}
 .date-row{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.12);padding:6px 12px;border-radius:8px;font-size:12px}
 .date-row label{opacity:.75}
 .date-row input{background:transparent;border:none;color:#fff;font-size:12px;cursor:pointer;width:110px}
 .date-row input::-webkit-calendar-picker-indicator{filter:invert(1);opacity:.7;cursor:pointer}
+.compare-wrap{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.1);padding:5px 10px;border-radius:8px}
+.cmp-label{font-size:11px;color:rgba(255,255,255,.7);font-weight:500}
+.cmp-select{background:transparent;border:none;color:#fff;font-size:11px;cursor:pointer;outline:none;padding:0 2px}
+.cmp-select option{color:#1B3A5C;background:#fff}
+.btn-sep{width:1px;height:16px;background:rgba(255,255,255,.25);margin:0 3px}
+.kcompare{font-size:10px;margin-top:5px;font-weight:600;min-height:14px}
+.kcompare.cmp-up{color:#059669}
+.kcompare.cmp-down{color:#DC2626}
+.kcompare.cmp-flat{color:#6B7280}
 .btn{padding:8px 15px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-weight:600;transition:.2s;white-space:nowrap}
 .btn-upload{background:#E63946;color:#fff}
 .btn-upload:hover{background:#c1121f}
@@ -233,19 +243,39 @@ footer{text-align:center;padding:24px;color:#9CA3AF;font-size:11.5px}
     <p>Marketing Attribution Dashboard</p>
   </div>
   <div class="hcontrols">
-    <div class="date-row">
-      <label>From</label>
-      <input type="date" id="dateFrom" onchange="applyFilters()">
-      <label>To</label>
-      <input type="date" id="dateTo" onchange="applyFilters()">
+    <div class="hcontrols-top">
+      <div class="date-row">
+        <label>From</label>
+        <input type="date" id="dateFrom" onchange="applyFilters()">
+        <label>To</label>
+        <input type="date" id="dateTo" onchange="applyFilters()">
+      </div>
+      <div class="compare-wrap">
+        <span class="cmp-label">vs</span>
+        <select id="compareMode" class="cmp-select" onchange="applyFilters()">
+          <option value="">No compare</option>
+          <option value="prevPeriod">Prev period</option>
+          <option value="prevMonth">Prev month</option>
+          <option value="prevYear">Prev year</option>
+        </select>
+      </div>
+      <button class="btn btn-upload" onclick="toggleUpload()">⬆ Upload CSVs</button>
     </div>
     <div class="quick-btns">
+      <button class="btn btn-quick" onclick="setPreset('today')">Today</button>
+      <button class="btn btn-quick" onclick="setPreset('yesterday')">Yesterday</button>
+      <div class="btn-sep"></div>
+      <button class="btn btn-quick" onclick="setPreset('thisMonth')">This Month</button>
+      <button class="btn btn-quick" onclick="setPreset('lastMonth')">Last Month</button>
+      <div class="btn-sep"></div>
+      <button class="btn btn-quick" onclick="setPreset('thisQuarter')">This Quarter</button>
+      <button class="btn btn-quick" onclick="setPreset('lastQuarter')">Last Quarter</button>
+      <div class="btn-sep"></div>
       <button class="btn btn-quick" onclick="setRange(30)">30D</button>
       <button class="btn btn-quick" onclick="setRange(90)">90D</button>
       <button class="btn btn-quick" onclick="setRange(365)">12M</button>
       <button class="btn btn-quick" onclick="resetDates()">All</button>
     </div>
-    <button class="btn btn-upload" onclick="toggleUpload()">⬆ Upload CSVs</button>
   </div>
 </header>
 
@@ -333,28 +363,28 @@ footer{text-align:center;padding:24px;color:#9CA3AF;font-size:11.5px}
     <!-- KPI Row 1: Revenue Summary -->
     <div class="kpi-section-label">💰 Revenue Summary</div>
     <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
-      <div class="kcard kcard-primary"><div class="klabel">Total Sold</div><div class="kval ok" id="kTotalSold">—</div><div class="ksub">packages + services</div></div>
-      <div class="kcard kcard-primary"><div class="klabel">Total Paid</div><div class="kval ok" id="kTotalPaid">—</div><div class="ksub" id="kTotalPaidSub"></div></div>
-      <div class="kcard"><div class="klabel">Total Outstanding</div><div class="kval warn" id="kTotalOut">—</div><div class="ksub">packages only</div></div>
+      <div class="kcard kcard-primary"><div class="klabel">Total Sold</div><div class="kval ok" id="kTotalSold">—</div><div class="ksub">packages + services</div><div class="kcompare" id="kTotalSoldCmp"></div></div>
+      <div class="kcard kcard-primary"><div class="klabel">Total Paid</div><div class="kval ok" id="kTotalPaid">—</div><div class="ksub" id="kTotalPaidSub"></div><div class="kcompare" id="kTotalPaidCmp"></div></div>
+      <div class="kcard"><div class="klabel">Total Outstanding</div><div class="kval warn" id="kTotalOut">—</div><div class="ksub">packages only</div><div class="kcompare" id="kTotalOutCmp"></div></div>
       <div class="kcard"><div class="klabel">Refunds</div><div class="kval" id="kRefunds">$0</div><div class="ksub">no refunds</div></div>
     </div>
 
     <!-- KPI Row 2: Package Breakdown -->
     <div class="kpi-section-label">📦 Packages <span style="font-weight:400;color:#9CA3AF">— reconciles with Wylie Package Sales report</span></div>
     <div class="kpi-grid" style="grid-template-columns:repeat(5,1fr)">
-      <div class="kcard"><div class="klabel">Total Sold</div><div class="kval ok" id="kPkgSold">—</div><div class="ksub">paid + outstanding</div></div>
-      <div class="kcard"><div class="klabel">Paid</div><div class="kval ok" id="kPkgRev">—</div><div class="ksub" id="kPkgRevSub"></div></div>
-      <div class="kcard"><div class="klabel">Outstanding</div><div class="kval warn" id="kOutstanding">—</div><div class="ksub" id="kOutstandingSub"></div></div>
-      <div class="kcard"><div class="klabel">Packages Sold</div><div class="kval" id="kPackages">—</div><div class="ksub">count</div></div>
-      <div class="kcard"><div class="klabel">Avg Package Value</div><div class="kval" id="kAvgPkg">—</div><div class="ksub">sold price</div></div>
+      <div class="kcard"><div class="klabel">Total Sold</div><div class="kval ok" id="kPkgSold">—</div><div class="ksub">paid + outstanding</div><div class="kcompare" id="kPkgSoldCmp"></div></div>
+      <div class="kcard"><div class="klabel">Paid</div><div class="kval ok" id="kPkgRev">—</div><div class="ksub" id="kPkgRevSub"></div><div class="kcompare" id="kPkgRevCmp"></div></div>
+      <div class="kcard"><div class="klabel">Outstanding</div><div class="kval warn" id="kOutstanding">—</div><div class="ksub" id="kOutstandingSub"></div><div class="kcompare" id="kOutstandingCmp"></div></div>
+      <div class="kcard"><div class="klabel">Packages Sold</div><div class="kval" id="kPackages">—</div><div class="ksub">count</div><div class="kcompare" id="kPackagesCmp"></div></div>
+      <div class="kcard"><div class="klabel">Avg Package Value</div><div class="kval" id="kAvgPkg">—</div><div class="ksub">sold price</div><div class="kcompare" id="kAvgPkgCmp"></div></div>
     </div>
 
     <!-- KPI Row 3: Services + Patients -->
     <div class="kpi-section-label">🧾 Services &amp; Patients</div>
     <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
-      <div class="kcard"><div class="klabel">Service Revenue</div><div class="kval ok" id="kSvcRev">—</div><div class="ksub" id="kSvcRevSub"></div></div>
-      <div class="kcard"><div class="klabel">Service Invoices</div><div class="kval" id="kSvcCount">—</div><div class="ksub">individual charges</div></div>
-      <div class="kcard"><div class="klabel">New Patients</div><div class="kval" id="kPatients">—</div><div class="ksub" id="kPatientsSub"></div></div>
+      <div class="kcard"><div class="klabel">Service Revenue</div><div class="kval ok" id="kSvcRev">—</div><div class="ksub" id="kSvcRevSub"></div><div class="kcompare" id="kSvcRevCmp"></div></div>
+      <div class="kcard"><div class="klabel">Service Invoices</div><div class="kval" id="kSvcCount">—</div><div class="ksub">individual charges</div><div class="kcompare" id="kSvcCountCmp"></div></div>
+      <div class="kcard"><div class="klabel">New Patients</div><div class="kval" id="kPatients">—</div><div class="ksub" id="kPatientsSub"></div><div class="kcompare" id="kPatientsCmp"></div></div>
       <div class="kcard"><div class="klabel">Unmatched Records</div><div class="kval dim" id="kUnmatched">—</div><div class="ksub">name mismatch in Wylie</div></div>
     </div>
 
@@ -1075,12 +1105,104 @@ function setRange(days){
   saveDateRange();
   renderAll();
 }
+function setPreset(name){
+  const now=new Date();
+  const y=now.getFullYear(), m=now.getMonth();
+  let from, to;
+  if(name==='today'){
+    from=new Date(y,m,now.getDate());
+    to=new Date(y,m,now.getDate(),23,59,59);
+  } else if(name==='yesterday'){
+    from=new Date(y,m,now.getDate()-1);
+    to=new Date(y,m,now.getDate()-1,23,59,59);
+  } else if(name==='thisMonth'){
+    from=new Date(y,m,1);
+    to=new Date(y,m,now.getDate(),23,59,59);
+  } else if(name==='lastMonth'){
+    from=new Date(y,m-1,1);
+    to=new Date(y,m,0,23,59,59);
+  } else if(name==='thisQuarter'){
+    const q=Math.floor(m/3);
+    from=new Date(y,q*3,1);
+    to=new Date(y,m,now.getDate(),23,59,59);
+  } else if(name==='lastQuarter'){
+    const q=Math.floor(m/3);
+    const pq=q===0?3:q-1, py=q===0?y-1:y;
+    from=new Date(py,pq*3,1);
+    to=new Date(py,pq*3+3,0,23,59,59);
+  }
+  if(!from||!to) return;
+  $('dateFrom').value=from.toISOString().split('T')[0];
+  $('dateTo').value=to.toISOString().split('T')[0];
+  document.querySelectorAll('.btn-quick').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+  saveDateRange();
+  renderAll();
+}
 function resetDates(){
   $('dateFrom').value='';
   $('dateTo').value='';
   document.querySelectorAll('.btn-quick').forEach(b=>b.classList.remove('active'));
   saveDateRange();
   renderAll();
+}
+function getCompareDates(){
+  const mode=$('compareMode')?.value; if(!mode) return null;
+  const f=getFrom(), t=getTo(); if(!f||!t) return null;
+  const days=Math.round((t-f)/86400000)+1;
+  if(mode==='prevPeriod'){
+    const cf=new Date(f); cf.setDate(cf.getDate()-days);
+    const ct=new Date(f); ct.setDate(ct.getDate()-1); ct.setHours(23,59,59,0);
+    return {from:cf,to:ct};
+  }
+  if(mode==='prevMonth'){
+    const cf=new Date(f); cf.setMonth(cf.getMonth()-1);
+    const ct=new Date(t); ct.setMonth(ct.getMonth()-1); ct.setHours(23,59,59,0);
+    return {from:cf,to:ct};
+  }
+  if(mode==='prevYear'){
+    const cf=new Date(f); cf.setFullYear(cf.getFullYear()-1);
+    const ct=new Date(t); ct.setFullYear(ct.getFullYear()-1); ct.setHours(23,59,59,0);
+    return {from:cf,to:ct};
+  }
+  return null;
+}
+function getCmpKPIs(cd){
+  if(!cd) return null;
+  const {from:cf,to:ct}=cd;
+  const all=[...S.joined,...S.unmatched].filter(s=>s.date&&s.date>=cf&&s.date<=ct);
+  const pkgs=all.filter(s=>s.type==='Package');
+  const svcs=all.filter(s=>s.type==='Invoice');
+  const pkgPaid=pkgs.reduce((s,j)=>s+j.paid,0);
+  const svcPaid=svcs.reduce((s,j)=>s+j.paid,0);
+  const pkgOut=pkgs.reduce((s,j)=>s+j.out,0);
+  const pkgTotal=pkgs.reduce((s,j)=>s+j.total,0);
+  const avgPkg=pkgs.length?pkgTotal/pkgs.length:0;
+  const newPats=S.customers.filter(c=>c.startDate&&c.startDate>=cf&&c.startDate<=ct).length;
+  return {totalSold:pkgTotal+svcPaid,totalPaid:pkgPaid+svcPaid,totalOut:pkgOut,
+    pkgSold:pkgTotal,pkgRev:pkgPaid,outstanding:pkgOut,packages:pkgs.length,avgPkg,
+    svcRev:svcPaid,svcCount:svcs.length,patients:newPats};
+}
+function getCmpLabel(){
+  const v=$('compareMode')?.value||'';
+  if(v==='prevPeriod') return 'prev period';
+  if(v==='prevMonth')  return 'prev month';
+  if(v==='prevYear')   return 'prev year';
+  return '';
+}
+function showCmp(id,cur,cmpVal,isCurrency,invertGood){
+  const el=$(id); if(!el) return;
+  if(cmpVal===null||cmpVal===undefined){el.innerHTML='';el.className='kcompare';return;}
+  const diff=cur-cmpVal;
+  const pct=cmpVal?(diff/cmpVal*100):(cur?100:0);
+  const up=invertGood?diff<0:diff>0;
+  const dn=invertGood?diff>0:diff<0;
+  const cls=diff===0?'cmp-flat':up?'cmp-up':'cmp-down';
+  const arrow=diff>0?'↑':diff<0?'↓':'→';
+  const chg=isCurrency?fmt$(Math.abs(diff)):Math.abs(Math.round(diff)).toLocaleString();
+  const lbl=getCmpLabel();
+  el.className='kcompare '+cls;
+  el.innerHTML=`${arrow} ${chg} (${Math.abs(pct).toFixed(1)}%)<span style="font-weight:400;opacity:.7"> vs ${lbl}</span>`;
 }
 function applyFilters(){
   document.querySelectorAll('.btn-quick').forEach(b=>b.classList.remove('active'));
@@ -1206,6 +1328,21 @@ function renderOverview(allSales,joined,customers){
   $('kSvcCount').textContent    = aSvcs.length||'—';
   $('kPatients').textContent    = customers.length.toLocaleString();
   $('kUnmatched').textContent   = S.unmatched.length||'0';
+
+  // Compare to previous period
+  const cd=getCompareDates(), cmp=getCmpKPIs(cd);
+  const cv=cmp?cmp:null;
+  showCmp('kTotalSoldCmp', grandTotal,       cv?.totalSold,  true);
+  showCmp('kTotalPaidCmp', totalPaid,        cv?.totalPaid,  true);
+  showCmp('kTotalOutCmp',  pkgOut,           cv?.totalOut,   true,  true);
+  showCmp('kPkgSoldCmp',   pkgTotal,         cv?.pkgSold,    true);
+  showCmp('kPkgRevCmp',    pkgPaid,          cv?.pkgRev,     true);
+  showCmp('kOutstandingCmp',pkgOut,          cv?.outstanding,true,  true);
+  showCmp('kPackagesCmp',  pkgs.length,      cv?.packages,   false);
+  showCmp('kAvgPkgCmp',    avgPkg,           cv?.avgPkg,     true);
+  showCmp('kSvcRevCmp',    svcPaid,          cv?.svcRev,     true);
+  showCmp('kSvcCountCmp',  aSvcs.length,     cv?.svcCount,   false);
+  showCmp('kPatientsCmp',  customers.length, cv?.patients,   false);
 
   // Revenue by source bar
   const bySrc=aggBySrc(joined);
